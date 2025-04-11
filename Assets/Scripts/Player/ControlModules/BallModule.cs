@@ -29,13 +29,13 @@ public class BallModule : ControlModule
 
     private void Input_JumpImpulse()
     {
-        if(player.isGrounded)
+        if(player.IsGrounded())
             rb.AddForce(Vector3.up * _jumpImpulseMagnitude, ForceMode.Impulse);
     }
     
     private void Input_SprintImpulse(Vector3 direction)
     {
-        if(player.isGrounded)
+        if(player.IsGrounded())
             rb.AddForce(direction * _sprintImpulseMagnitude, ForceMode.Impulse);
     }
 }
