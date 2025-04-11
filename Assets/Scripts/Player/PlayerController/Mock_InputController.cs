@@ -28,6 +28,8 @@ public class Mock_InputController : MonoBehaviour
 
         if (direction != Vector3.zero)
             OnMovementInput?.Invoke(direction.normalized);
+        else
+            direction = Vector3.zero;
 
         if (Input.GetKeyDown(KeyCode.Space))
             OnJumpInput?.Invoke();

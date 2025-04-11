@@ -5,21 +5,23 @@ using UnityEngine;
 public class ControlModuleManager : MonoBehaviour
 {
     [SerializeField] ControlModule ballModule;
-    [SerializeField] ControlModule movementModule;
+    //[SerializeField] ControlModule movementModule;
 
     private int _actualModule = 0;
     private List<ControlModule> _modules = new List<ControlModule>();
     private void Start()
     {
-        _modules.Add(movementModule);
+        //_modules.Add(movementModule);
         _modules.Add(ballModule);
         _actualModule = 0;
+        ActivateModule();
+        DeactivateOtherModules();
         Mock_InputController.OnModeChangeInput += SwitchMode;
     }
 
     private void SwitchMode()
     {
-        DeactivateModule();
+        DeactivateOtherModules();
         _actualModule = GetNextModule();
         ActivateModule();
     }
@@ -43,8 +45,11 @@ public class ControlModuleManager : MonoBehaviour
         _modules[_actualModule].enabled = true;
     }
     
-    private void DeactivateModule()
+    private void DeactivateOtherModules()
     {
-        _modules[_actualModule].enabled = false;
+        int i = 0;
+        foreach (ControlModule module in _modules)
+            if (i != _actualModule)
+                module.enabled = false;
     }
 }

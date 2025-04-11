@@ -5,12 +5,16 @@ public class Mock_MovementModule : ControlModule
 {
     
     [SerializeField] private float movementSpeed = 5f;
-    private Rigidbody rb;
 
+
+    private Rigidbody rb;
+    private Player player;
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        player = GetComponent<Player>();
+
     }
 
     private void OnEnable()

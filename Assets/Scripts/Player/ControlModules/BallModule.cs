@@ -7,10 +7,12 @@ public class BallModule : ControlModule
     [SerializeField] private float _jumpImpulseMagnitude;
     [SerializeField] private float _sprintImpulseMagnitude;
     private Rigidbody rb;
+    private Player player;
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        player = GetComponent<Player>();
     }
 
     public void OnEnable()
@@ -27,11 +29,13 @@ public class BallModule : ControlModule
 
     private void Input_JumpImpulse()
     {
-        rb.AddForce(Vector3.up * _jumpImpulseMagnitude, ForceMode.Impulse);
+        if(player.isGrounded)
+            rb.AddForce(Vector3.up * _jumpImpulseMagnitude, ForceMode.Impulse);
     }
     
     private void Input_SprintImpulse(Vector3 direction)
     {
-        rb.AddForce(Vector3.forward * _sprintImpulseMagnitude, ForceMode.Impulse);
+        if(player.isGrounded)
+            rb.AddForce(direction * _sprintImpulseMagnitude, ForceMode.Impulse);
     }
 }
