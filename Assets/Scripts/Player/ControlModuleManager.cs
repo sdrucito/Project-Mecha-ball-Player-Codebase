@@ -8,15 +8,15 @@ using UnityEngine;
 public class ControlModuleManager : MonoBehaviour
 {
     
-    private int _actualModule = 0; // Index of the active module
-    private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
+    [SerializeField] private int _actualModule = 0; // Index of the active module
+    [SerializeField] private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
     private void Start()
     {
         GetAvailableControlModules();
         _actualModule = 0;
         ActivateModule();
         DeactivateOtherModules();
-        Mock_InputController.OnModeChangeInput += SwitchMode;
+        PlayerInputManager.Instance.OnModeChangeInput += SwitchMode;
     }
 
     // Search for modules in sub-objects and insert them into a list
@@ -34,6 +34,7 @@ public class ControlModuleManager : MonoBehaviour
     }
     private void SwitchMode()
     {
+        Debug.Log("SwitchMode");
         DeactivateOtherModules();
         _actualModule = GetNextModule();
         ActivateModule();
@@ -65,5 +66,9 @@ public class ControlModuleManager : MonoBehaviour
             if (i != _actualModule)
                 module.enabled = false;
     }
-    
+
+    private void Update()
+    {
+        Debug.Log("Current module:"+_modules[_actualModule].name);
+    }
 }
