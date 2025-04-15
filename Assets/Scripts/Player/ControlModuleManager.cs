@@ -8,7 +8,7 @@ using UnityEngine;
 public class ControlModuleManager : MonoBehaviour
 {
     
-    [SerializeField] private int _actualModule = 0; // Index of the active module
+    [SerializeField] private int _actualModule = 0; // Index of the active module //TODO Make this private
     [SerializeField] private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
     private void Start()
     {

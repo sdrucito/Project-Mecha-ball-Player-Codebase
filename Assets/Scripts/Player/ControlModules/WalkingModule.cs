@@ -42,7 +42,8 @@ public class WalkingModule : ControlModule
     {
         if (player.IsGrounded())
         {
-            _controller.Move(_inputVector* WalkingSpeed * Time.fixedDeltaTime);
+            Vector3 horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
+            _controller.Move(horizontalMove* WalkingSpeed * Time.fixedDeltaTime);
         }
     }
     
