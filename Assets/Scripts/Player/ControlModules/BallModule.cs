@@ -6,14 +6,9 @@ public class BallModule : ControlModule
     
     [SerializeField] private float _jumpImpulseMagnitude;
     [SerializeField] private float _sprintImpulseMagnitude;
-    private Rigidbody rb;
-    private Player player;
-
-    private void Start()
-    {
-        rb = GetComponent<Rigidbody>();
-        player = GetComponent<Player>();
-    }
+    [SerializeField] private Rigidbody rb;
+    [SerializeField] private Player player;
+    
 
     public void OnEnable()
     {

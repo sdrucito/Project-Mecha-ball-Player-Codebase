@@ -2,23 +2,36 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/*
+ * Manages every control module attached to the player. Supervise the switch between different modules
+ */
 public class ControlModuleManager : MonoBehaviour
 {
-    [SerializeField] ControlModule ballModule;
-    //[SerializeField] ControlModule movementModule;
-
-    private int _actualModule = 0;
-    private List<ControlModule> _modules = new List<ControlModule>();
+    
+    private int _actualModule = 0; // Index of the active module
+    private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
     private void Start()
     {
-        //_modules.Add(movementModule);
-        _modules.Add(ballModule);
+        GetAvailableControlModules();
         _actualModule = 0;
         ActivateModule();
         DeactivateOtherModules();
         Mock_InputController.OnModeChangeInput += SwitchMode;
     }
 
+    // Search for modules in sub-objects and insert them into a list
+    // Every time a new module has to be added, it is simply created with an empty sub-object of the control module manager
+    private void GetAvailableControlModules()
+    {
+        for (var i = 0; i < gameObject.transform.childCount; i++)
+        {
+            var childModule = gameObject.transform.GetChild(i).GetComponent<ControlModule>();
+            if (childModule)
+            {
+                _modules.Add(childModule);
+            }
+        }
+    }
     private void SwitchMode()
     {
         DeactivateOtherModules();
@@ -52,4 +65,5 @@ public class ControlModuleManager : MonoBehaviour
             if (i != _actualModule)
                 module.enabled = false;
     }
+    
 }
