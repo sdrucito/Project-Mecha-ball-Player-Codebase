@@ -35,7 +35,6 @@ public class ControlModuleManager : MonoBehaviour
     private void SwitchMode()
     {
         Debug.Log("SwitchMode");
-        DeactivateOtherModules();
         _actualModule = GetNextModule();
         ActivateModule();
     }
@@ -63,7 +62,7 @@ public class ControlModuleManager : MonoBehaviour
     {
         int i = 0;
         foreach (ControlModule module in _modules)
-            if (i != _actualModule)
+            if (_modules.IndexOf(module) != _actualModule)
                 module.enabled = false;
     }
 

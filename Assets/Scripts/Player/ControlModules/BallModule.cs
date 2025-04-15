@@ -15,7 +15,7 @@ public class BallModule : ControlModule
         //Mock_InputController.OnJumpInput += Input_JumpImpulse;
         //Mock_InputController.OnSprintInput += Input_SprintImpulse;
         PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
-        player.GetComponent<Rigidbody>().isKinematic = false;
+        rb.isKinematic = false;
     }
 
     public void OnDisable()
@@ -23,7 +23,7 @@ public class BallModule : ControlModule
         //Mock_InputController.OnJumpInput -= Input_JumpImpulse;
         //Mock_InputController.OnSprintInput -= Input_SprintImpulse;
         PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
-        player.GetComponent<Rigidbody>().isKinematic = true;
+        rb.isKinematic = true;
 
     }
 
