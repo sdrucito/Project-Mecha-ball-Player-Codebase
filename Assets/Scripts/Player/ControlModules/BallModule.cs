@@ -30,7 +30,10 @@ public class BallModule : ControlModule
     
     private void Input_SprintImpulse(Vector3 direction)
     {
-        if(player.IsGrounded())
+        if (player.IsGrounded())
+        {
+            //Debug.Log("Firing sprint impulse");
             rb.AddForce(direction * _sprintImpulseMagnitude, ForceMode.Impulse);
+        }
     }
 }
