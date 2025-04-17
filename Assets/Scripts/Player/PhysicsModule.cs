@@ -54,7 +54,6 @@ public class PhysicsModule : MonoBehaviour
         switch (hitData.Tag)
         {
             case "Ground":
-                Debug.LogWarning("Setting IsGrounded to false");
                 _isGrounded = false;
                 break;
         }
