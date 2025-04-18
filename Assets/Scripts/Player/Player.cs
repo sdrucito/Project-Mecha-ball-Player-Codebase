@@ -39,10 +39,16 @@ public class Player : MonoBehaviour
     {
         // Create collision data wrapper
         CollisionData collisionData = new CollisionData(other, other.gameObject.tag);
-        _physicsModule.OnExitPhysicsUpdate(collisionData);    }
+        _physicsModule.OnExitPhysicsUpdate(collisionData);    
+    }
 
     public bool IsGrounded()
     {
         return _physicsModule.IsGrounded();
+    }
+
+    public Vector3 GetGroundNormal()
+    {
+        return _physicsModule.GetGroundNormal();
     }
 }

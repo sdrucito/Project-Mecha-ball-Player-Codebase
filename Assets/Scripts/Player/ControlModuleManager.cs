@@ -14,8 +14,9 @@ public class ControlModuleManager : MonoBehaviour
     {
         GetAvailableControlModules();
         _actualModule = 0;
+        DeactivateAllModules();
         ActivateModule();
-        DeactivateOtherModules();
+        
         PlayerInputManager.Instance.OnModeChangeInput += SwitchMode;
     }
 
@@ -36,6 +37,7 @@ public class ControlModuleManager : MonoBehaviour
     {
         Debug.Log("SwitchMode");
         _actualModule = GetNextModule();
+        DeactivateAllModules();
         ActivateModule();
     }
 
@@ -58,11 +60,10 @@ public class ControlModuleManager : MonoBehaviour
         _modules[_actualModule].enabled = true;
     }
     
-    private void DeactivateOtherModules()
+    private void DeactivateAllModules()
     {
         int i = 0;
         foreach (ControlModule module in _modules)
-            if (_modules.IndexOf(module) != _actualModule)
                 module.enabled = false;
     }
 
