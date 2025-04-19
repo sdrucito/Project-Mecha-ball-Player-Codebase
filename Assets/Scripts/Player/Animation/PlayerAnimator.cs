@@ -51,6 +51,7 @@ public class PlayerAnimator : MonoBehaviour
     [SerializeField] private float stepHeight = 10.0f;
     [SerializeField] private float jumpHeight = 20f;
     [SerializeField] private float stepSpeed = 2.0f;
+    [SerializeField] private float footHeight = 1.5f;
 
     [SerializeField] private string terrainLayer;
 
@@ -107,41 +108,46 @@ public class PlayerAnimator : MonoBehaviour
     {
         // Verify if player is grounded
 
-            // Call the update for each leg and set the new IK position
-            bool isMoving = transform.hasChanged;
-            transform.hasChanged = false;
-            // Detect fresh start from idle
-            if (isMoving && !_wasMoving && _currentGroup == StepGroup.Idle)
-            {
-                _currentGroup = StepGroup.GroupA;
-                StartStepForGroup(StepGroup.GroupA);
-            }
+        // Call the update for each leg and set the new IK position
+        bool isMoving = transform.hasChanged;
+        transform.hasChanged = false;
+        // Detect fresh start from idle
+        if (isMoving && !_wasMoving && _currentGroup == StepGroup.Idle)
+        {
+            _currentGroup = StepGroup.GroupA;
+            StartStepForGroup(StepGroup.GroupA);
+        }
+    
+        // GroupA finishes, go to GroupB
+        if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(StepGroup.GroupA))
+        {
+            _currentGroup = StepGroup.GroupB;
+            StartStepForGroup(StepGroup.GroupB);
+        }
+    
+        // GroupB finishes, go to GroupA again
+        if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(StepGroup.GroupB))
+        {
+            _currentGroup = StepGroup.GroupA;
+            StartStepForGroup(StepGroup.GroupA);
+        }
+    
+        if (!isMoving)
+            _currentGroup = StepGroup.Idle;
+    
+        _wasMoving = isMoving;
+    
+        MoveLegStep(ref _frontLeftFootAnim);
+        MoveLegStep(ref _frontRightFootAnim);
+        MoveLegStep(ref _rearLeftFootAnim);
+        MoveLegStep(ref _rearRightFootAnim);
         
-            // GroupA finishes, go to GroupB
-            if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(StepGroup.GroupA))
-            {
-                _currentGroup = StepGroup.GroupB;
-                StartStepForGroup(StepGroup.GroupB);
-            }
-        
-            // GroupB finishes, go to GroupA again
-            if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(StepGroup.GroupB))
-            {
-                _currentGroup = StepGroup.GroupA;
-                StartStepForGroup(StepGroup.GroupA);
-            }
-        
-            if (!isMoving)
-                _currentGroup = StepGroup.Idle;
-        
-            _wasMoving = isMoving;
-        
-            MoveLegStep(ref _frontLeftFootAnim);
-            MoveLegStep(ref _frontRightFootAnim);
-            MoveLegStep(ref _rearLeftFootAnim);
-            MoveLegStep(ref _rearRightFootAnim);
         
         
+    }
+
+    void SnapFootToGround(ref LegAnimator legAnimator)
+    {
         
     }
 
@@ -174,6 +180,10 @@ public class PlayerAnimator : MonoBehaviour
            
             legAnimator.Transform.position = new Vector3(planarPos.x, legAnimator.NewPosition.y + verticalOffset, planarPos.z);
         }
+        else
+        {
+            legAnimator.Transform.position = legAnimator.OldPosition;
+        }
 
         
     }
@@ -202,6 +212,8 @@ public class PlayerAnimator : MonoBehaviour
                     leg.Lerp = 0;
                     leg.NewPosition = hit.point;
                     leg.OldPosition = leg.NewPosition;
+                    leg.NewPosition.y += footHeight;
+                    leg.OldPosition.y += footHeight;
                 }
             }
 
