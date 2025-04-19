@@ -8,7 +8,11 @@ public class BallModule : ControlModule
     [SerializeField] private float _sprintImpulseMagnitude;
     [SerializeField] private Rigidbody rb;
     [SerializeField] private Player player;
-    
+
+    private void Awake()
+    {
+        name = "Ball";
+    }
 
     public void OnEnable()
     {

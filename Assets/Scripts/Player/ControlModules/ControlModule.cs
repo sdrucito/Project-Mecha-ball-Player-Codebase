@@ -5,6 +5,11 @@ using UnityEngine;
  */
 public class ControlModule : MonoBehaviour
 {
- 
 
+    protected string _name = "None";
+
+    public string GetName()
+    {
+        return _name;
+    }
 }

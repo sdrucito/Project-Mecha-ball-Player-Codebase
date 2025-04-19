@@ -47,13 +47,10 @@ public class PlayerAnimator : MonoBehaviour
     [SerializeField] SecondOrderDynamics secondOrderDynamics_rlF;
     [SerializeField] SecondOrderDynamics secondOrderDynamics_rrF;
 
-    [SerializeField] private float stepLength = 2.0f;
     [SerializeField] private float stepHeight = 10.0f;
-    [SerializeField] private float jumpHeight = 20f;
     [SerializeField] private float stepSpeed = 2.0f;
     [SerializeField] private float footHeight = 1.5f;
 
-    [SerializeField] private string terrainLayer;
 
     private Rigidbody _rigidbody;
     private LegAnimator _frontLeftFootAnim;
@@ -62,7 +59,8 @@ public class PlayerAnimator : MonoBehaviour
     private LegAnimator _rearRightFootAnim;
     
     private List<LegAnimator> _legs = new List<LegAnimator>();
-    
+
+    private RaycastManager _raycast;
     enum StepGroup
     {
         Idle,
@@ -77,10 +75,17 @@ public class PlayerAnimator : MonoBehaviour
     private bool _wasMoving = false;
     
     private Player _player;
-    void Start()
+
+    private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
         _player = GetComponent<Player>();
+        _raycast = GetComponent<RaycastManager>();
+    }
+
+    void Start()
+    {
+        
         // Initialize the second order resolvers for each foot
         secondOrderDynamics_flF.Initialize(f, z, r, frontLeftFoot.position);
         secondOrderDynamics_frF.Initialize(f, z, r, frontRightFoot.position);
@@ -131,24 +136,42 @@ public class PlayerAnimator : MonoBehaviour
             _currentGroup = StepGroup.GroupA;
             StartStepForGroup(StepGroup.GroupA);
         }
-    
-        if (!isMoving)
+
+        if (IsStopped(isMoving))
+        {
             _currentGroup = StepGroup.Idle;
+            ReturnLegToIdle();
+        }
     
         _wasMoving = isMoving;
     
-        MoveLegStep(ref _frontLeftFootAnim);
-        MoveLegStep(ref _frontRightFootAnim);
-        MoveLegStep(ref _rearLeftFootAnim);
-        MoveLegStep(ref _rearRightFootAnim);
-        
-        
+        MoveLegStep(_frontLeftFootAnim);
+        MoveLegStep(_frontRightFootAnim);
+        MoveLegStep(_rearLeftFootAnim);
+        MoveLegStep(_rearRightFootAnim);
+
+        if (_raycast)
+        {
+            _raycast.SetLegs(_legs);
+        }
         
     }
 
-    void SnapFootToGround(ref LegAnimator legAnimator)
+    bool IsStopped(bool newMoving)
     {
-        
+        return !newMoving && _currentGroup != (StepGroup.Idle) && IsMovementGroupFinished(StepGroup.GroupA) &&
+               IsMovementGroupFinished(StepGroup.GroupB);
+    }
+    void ReturnLegToIdle()
+    {
+        for (int i = 0; i < _legs.Count; i++)
+        {
+            if (_raycast)
+            {
+                _raycast.ExecuteReturnToIdle(_legs[i]);
+            }
+           
+        }
     }
 
     bool IsMovementGroupFinished(StepGroup stepGroup)
@@ -166,7 +189,7 @@ public class PlayerAnimator : MonoBehaviour
         return true;
     }
 
-    void MoveLegStep(ref LegAnimator legAnimator)
+    void MoveLegStep(LegAnimator legAnimator)
     {
         
         if (legAnimator.Lerp < 1f)
@@ -179,10 +202,17 @@ public class PlayerAnimator : MonoBehaviour
             Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.deltaTime, legAnimator.NewPosition);
            
             legAnimator.Transform.position = new Vector3(planarPos.x, legAnimator.NewPosition.y + verticalOffset, planarPos.z);
+            if (legAnimator.Lerp >= 1f)
+            {
+                legAnimator.OldPosition = legAnimator.NewPosition;
+            }
+            //Debug.Log("NewPosition: " + legAnimator.NewPosition);
+
         }
         else
         {
             legAnimator.Transform.position = legAnimator.OldPosition;
+            //Debug.Log("OldPosition: " + legAnimator.OldPosition);
         }
 
         
@@ -197,97 +227,18 @@ public class PlayerAnimator : MonoBehaviour
     void StartStepForGroup(StepGroup group)
     {
         List<LegAnimator> legToMove = (group == StepGroup.GroupA) ? groupALegs : groupBLegs;
-        int mask = LayerMask.GetMask(terrainLayer);
 
         for (int i = 0; i < legToMove.Count; i++)
         {
-            LegAnimator leg = legToMove[i];
-            Vector3 relativePos = _rigidbody.position + leg.RelativePosition;
-            Ray ray = new Ray(relativePos, Vector3.down);
-            if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+            if (_raycast)
             {
-                // Verify if the hit distance is greater than the step length
-                if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
-                {
-                    leg.Lerp = 0;
-                    leg.NewPosition = hit.point;
-                    leg.OldPosition = leg.NewPosition;
-                    leg.NewPosition.y += footHeight;
-                    leg.OldPosition.y += footHeight;
-                }
+                _raycast.ExecuteStepForLeg(legToMove[i]);
             }
-
-            legToMove[i] = leg;
+           
         }
     }
-    /*
-void MoveLeg(LegAnimator leg)
-    {
-        Vector3 origin = _rigidbody.position + leg.RelativePosition;
-        int mask = LayerMask.GetMask(terrainLayer);
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, jumpHeight, mask))
-        {
-            if(Vector3.Distance(leg.NewPosition, hit.point) > stepLength)
-            {
-                /*
-                 Debug.Log("Starting new step");
-                Debug.Log("New pos:" + leg.NewPosition);
-                Debug.Log("Hit point:" + hit.point);
-                Debug.Log("Computed distance: " + Vector3.Distance(leg.NewPosition, hit.point));
-                 * /
-                
-                leg.NewPosition = hit.point;         
-                leg.Lerp = 0f;
-            }
-        }
 
-        if (leg.Lerp < 1f)
-        {
-            Vector3 planarPos = leg.SecondOrderDynamics.UpdatePosition(Time.deltaTime, leg.NewPosition);
-
-            Debug.Log("Lerping " + leg.Lerp);
-            Vector3 footPosition = Vector3.Lerp(leg.OldPosition, leg.NewPosition, leg.Lerp);
-            footPosition.y += Mathf.Sin(leg.Lerp * Mathf.PI) * stepHeight;
-            leg.Lerp += Time.deltaTime * stepSpeed;
-            leg.Transform.position = new Vector3(planarPos.x, footPosition.y, planarPos.z);
-        }
-        else
-        {
-            leg.OldPosition = leg.NewPosition;
-        }
-        
-        
-        
-
-    }
-
-     */
     
     
-    [ExecuteInEditMode]
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        foreach (var leg in _legs)
-        {
-            Vector3 origin    = _rigidbody.position
-                                + leg.RelativePosition;
-            Vector3 direction = Vector3.down;
-
-            // Draw full test ray
-            Gizmos.DrawLine(origin, origin + direction * jumpHeight);
-            // Draw every test ray in Play mode
-            Debug.DrawRay(origin, direction * jumpHeight, Color.yellow);
-            // Show hit point
-            if (Physics.Raycast(origin, direction, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-            {
-                Gizmos.color = Color.red;
-                Gizmos.DrawLine(origin, hit.point);
-                Gizmos.DrawSphere(hit.point, 0.15f);
-                Gizmos.color = Color.yellow;  // reset for next leg
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawSphere(leg.NewPosition, 0.10f);
-            }
-        }
-    }
+    
 }

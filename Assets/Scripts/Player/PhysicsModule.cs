@@ -27,14 +27,40 @@ public class PhysicsModule : MonoBehaviour
     
     private bool _isGrounded;
     private Rigidbody _rigidbody;
+    private ControlModuleManager _controlModuleManager;
+    private RaycastManager _raycastManager;
     private List<ContactPoint> _contactPoints = new List<ContactPoint>();
     
     private Queue<string> _collisionTags = new Queue<string>();
     private float _collisionAngle;
     [SerializeField] private Vector3 _groundNormal;
-    private void Start()
+
+    private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
+        _controlModuleManager = GetComponent<ControlModuleManager>();
+        _raycastManager = GetComponent<RaycastManager>();
+    }
+
+    private void Start()
+    {
+        
+    }
+
+    private void FixedUpdate()
+    {
+        if (_controlModuleManager && _controlModuleManager.GetActiveModuleName() == "Walk")
+        {
+            List<RaycastHit> hits = _raycastManager.GetHitList();
+            if (hits.Count > 1)
+            {
+                _isGrounded = true;
+            }
+            else
+            {
+                _isGrounded = false;
+            }
+        }
     }
 
     public void OnEnterPhysicsUpdate(CollisionData hitData)

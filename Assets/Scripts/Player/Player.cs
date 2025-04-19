@@ -10,7 +10,7 @@ public class Player : MonoBehaviour
     
     private PhysicsModule _physicsModule;
     private PlayerAttributes _playerAttributes;
-
+    private bool _isGrounded = false;
 
     private void Start()
     {
@@ -21,7 +21,7 @@ public class Player : MonoBehaviour
 
     private void FixedUpdate()
     {
-        //_isGrounded = _physicsModule.IsGrounded();
+        _isGrounded = _physicsModule.IsGrounded();
     }
 
     private void InitializePlayer()
@@ -51,4 +51,5 @@ public class Player : MonoBehaviour
     {
         return _physicsModule.GetGroundNormal();
     }
+
 }

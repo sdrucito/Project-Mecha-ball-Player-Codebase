@@ -8,8 +8,15 @@ using UnityEngine;
 public class ControlModuleManager : MonoBehaviour
 {
     
-    [SerializeField] private int _actualModule = 0; // Index of the active module //TODO Make this private
-    [SerializeField] private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
+    private int _actualModule = 0; // Index of the active module
+    private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
+
+
+    public string GetActiveModuleName()
+    {
+        return _modules[_actualModule].name;
+    }
+    
     private void Start()
     {
         GetAvailableControlModules();
@@ -65,10 +72,5 @@ public class ControlModuleManager : MonoBehaviour
         int i = 0;
         foreach (ControlModule module in _modules)
                 module.enabled = false;
-    }
-
-    private void Update()
-    {
-        Debug.Log("Current module:"+_modules[_actualModule].name);
     }
 }

@@ -19,7 +19,9 @@ public class WalkingModule : ControlModule
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Awake()
     {
+        name = "Walk";
         _controller = player.GetComponent<CharacterController>();
+        
     }
 
     private void OnEnable()
@@ -55,7 +57,6 @@ public class WalkingModule : ControlModule
             var groundNormal = player.GetGroundNormal();
             Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
             transform.rotation = Quaternion.FromToRotation(transform.up, groundNormal) * transform.rotation;
-            Debug.Log("Ground Normal:"+ groundNormal);
             
             // Calculate the movement
             var horizontalMove = Vector3.zero;
