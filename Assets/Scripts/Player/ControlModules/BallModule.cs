@@ -12,14 +12,19 @@ public class BallModule : ControlModule
 
     public void OnEnable()
     {
-        Mock_InputController.OnJumpInput += Input_JumpImpulse;
-        Mock_InputController.OnSprintInput += Input_SprintImpulse;
+        //Mock_InputController.OnJumpInput += Input_JumpImpulse;
+        //Mock_InputController.OnSprintInput += Input_SprintImpulse;
+        PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
+        rb.isKinematic = false;
     }
 
     public void OnDisable()
     {
-        Mock_InputController.OnJumpInput -= Input_JumpImpulse;
-        Mock_InputController.OnSprintInput -= Input_SprintImpulse;
+        //Mock_InputController.OnJumpInput -= Input_JumpImpulse;
+        //Mock_InputController.OnSprintInput -= Input_SprintImpulse;
+        PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
+        rb.isKinematic = true;
+
     }
 
     private void Input_JumpImpulse()

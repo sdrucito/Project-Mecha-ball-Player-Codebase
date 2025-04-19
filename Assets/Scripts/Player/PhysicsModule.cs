@@ -31,6 +31,7 @@ public class PhysicsModule : MonoBehaviour
     
     private Queue<string> _collisionTags = new Queue<string>();
     private float _collisionAngle;
+    [SerializeField] private Vector3 _groundNormal;
     private void Start()
     {
         _rigidbody = GetComponent<Rigidbody>();
@@ -83,6 +84,10 @@ public class PhysicsModule : MonoBehaviour
         {
             _isGrounded = true;
         }
+    }
+    public Vector3 GetGroundNormal()
+    {
+        return _groundNormal;
     }
 
     
