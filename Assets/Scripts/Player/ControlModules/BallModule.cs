@@ -16,17 +16,15 @@ public class BallModule : ControlModule
 
     public void OnEnable()
     {
-        //Mock_InputController.OnJumpInput += Input_JumpImpulse;
-        //Mock_InputController.OnSprintInput += Input_SprintImpulse;
         PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
+        PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
         rb.isKinematic = false;
     }
 
     public void OnDisable()
     {
-        //Mock_InputController.OnJumpInput -= Input_JumpImpulse;
-        //Mock_InputController.OnSprintInput -= Input_SprintImpulse;
         PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
+        PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
         rb.isKinematic = true;
 
     }
@@ -37,12 +35,12 @@ public class BallModule : ControlModule
             rb.AddForce(Vector3.up * _jumpImpulseMagnitude, ForceMode.Impulse);
     }
     
-    private void Input_SprintImpulse(Vector3 direction)
+    private void Input_SprintImpulse(Vector2 direction)
     {
         if (player.IsGrounded())
         {
             //Debug.Log("Firing sprint impulse");
-            rb.AddForce(direction * _sprintImpulseMagnitude, ForceMode.Impulse);
+            rb.AddForce(new Vector3(direction.x,0,direction.y) * _sprintImpulseMagnitude, ForceMode.Impulse);
         }
     }
 }
