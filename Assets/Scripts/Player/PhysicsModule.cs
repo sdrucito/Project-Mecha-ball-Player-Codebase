@@ -49,6 +49,11 @@ public class PhysicsModule : MonoBehaviour
 
     private void FixedUpdate()
     {
+        SetWalkGrounded();
+    }
+
+    private void SetWalkGrounded()
+    {
         if (_controlModuleManager && _controlModuleManager.GetActiveModuleName() == "Walk")
         {
             List<RaycastHit> hits = _raycastManager.GetHitList();
@@ -69,7 +74,6 @@ public class PhysicsModule : MonoBehaviour
         {
             case "Ground":
                 _collisionAngle = GetCollisionAngle(hitData);
-                Debug.Log("Collision angle:" + _collisionAngle);
                 break;
         }
         _collisionTags.Enqueue(hitData.Tag);

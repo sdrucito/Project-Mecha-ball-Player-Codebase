@@ -11,12 +11,18 @@ public class ControlModuleManager : MonoBehaviour
     private int _actualModule = 0; // Index of the active module
     private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
 
+    private PlayerAnimator _playerAnimator;
 
     public string GetActiveModuleName()
     {
         return _modules[_actualModule].name;
     }
-    
+
+    private void Awake()
+    {
+        _playerAnimator = GetComponentInChildren<PlayerAnimator>();
+    }
+
     private void Start()
     {
         GetAvailableControlModules();
@@ -42,9 +48,22 @@ public class ControlModuleManager : MonoBehaviour
     }
     private void SwitchMode()
     {
-        Debug.Log("SwitchMode");
         _actualModule = GetNextModule();
         DeactivateAllModules();
+
+        switch (GetActiveModuleName())
+        {
+            case "Ball":
+                _playerAnimator.Close();
+                break;
+            case "Walk":
+                _playerAnimator.Open();
+                break;
+        }
+    }
+
+    public void ActivateNextModule()
+    {
         ActivateModule();
     }
 
@@ -65,6 +84,7 @@ public class ControlModuleManager : MonoBehaviour
     private void ActivateModule()
     {
         _modules[_actualModule].enabled = true;
+        Debug.Log("Enabled Module: " + GetActiveModuleName());
     }
     
     private void DeactivateAllModules()

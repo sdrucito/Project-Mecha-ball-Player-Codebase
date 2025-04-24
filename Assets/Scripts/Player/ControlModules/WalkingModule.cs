@@ -15,7 +15,7 @@ public class WalkingModule : ControlModule
     private Vector2 _inputVector = Vector2.zero;
     
     [SerializeField] private Player player;
-    
+    [SerializeField] private PlayerWalkAnimator playerWalkAnimator;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Awake()
     {
@@ -30,6 +30,7 @@ public class WalkingModule : ControlModule
         {
             PlayerInputManager.Instance.OnMoveInput += HandleMovement;
             player.GetComponent<CharacterController>().enabled = true;
+            playerWalkAnimator.enabled = true;
         }
     }
 
@@ -39,6 +40,8 @@ public class WalkingModule : ControlModule
         {
             PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
             player.GetComponent<CharacterController>().enabled = false;
+            playerWalkAnimator.enabled = false;
+
         }
 
     }
