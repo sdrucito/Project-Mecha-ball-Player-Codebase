@@ -17,12 +17,14 @@ public class BallModule : ControlModule
     public void OnEnable()
     {
         PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
+        PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
         rb.isKinematic = false;
     }
 
     public void OnDisable()
     {
         PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
+        PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
         rb.isKinematic = true;
 
     }
@@ -33,11 +35,12 @@ public class BallModule : ControlModule
             rb.AddForce(Vector3.up * _jumpImpulseMagnitude, ForceMode.Impulse);
     }
     
-    private void Input_SprintImpulse(Vector3 direction)
+    private void Input_SprintImpulse(Vector2 direction)
     {
         if (player.IsGrounded())
         {
-            rb.AddForce(direction * _sprintImpulseMagnitude, ForceMode.Impulse);
+            //Debug.Log("Firing sprint impulse");
+            rb.AddForce(new Vector3(direction.x,0,direction.y) * _sprintImpulseMagnitude, ForceMode.Impulse);
         }
     }
 }
