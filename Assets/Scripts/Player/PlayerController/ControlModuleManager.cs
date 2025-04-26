@@ -1,96 +1,103 @@
-using System;
 using System.Collections.Generic;
+using Player.Animation;
+using Player.ControlModules;
 using UnityEngine;
+using UnityEngine.Events;
 
 /*
  * Manages every control module attached to the player. Supervise the switch between different modules
  */
-public class ControlModuleManager : MonoBehaviour
+namespace Player.PlayerController
 {
+    public class ControlModuleManager : MonoBehaviour
+    {
     
-    private int _actualModule = 0; // Index of the active module
-    private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
-
-    private PlayerAnimator _playerAnimator;
-
-    public string GetActiveModuleName()
-    {
-        return _modules[_actualModule].name;
-    }
-
-    private void Awake()
-    {
-        _playerAnimator = GetComponentInChildren<PlayerAnimator>();
-    }
-
-    private void Start()
-    {
-        GetAvailableControlModules();
-        _actualModule = 0;
-        DeactivateAllModules();
-        ActivateModule();
+        private int _actualModule = 0; // Index of the active module
+        private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
         
-        PlayerInputManager.Instance.OnModeChangeInput += SwitchMode;
-    }
-
-    // Search for modules in sub-objects and insert them into a list
-    // Every time a new module has to be added, it is simply created with an empty sub-object of the control module manager
-    private void GetAvailableControlModules()
-    {
-        for (var i = 0; i < gameObject.transform.childCount; i++)
+        public string GetActiveModuleName()
         {
-            var childModule = gameObject.transform.GetChild(i).GetComponent<ControlModule>();
-            if (childModule)
+            return _modules[_actualModule].name;
+        }
+
+        public ControlModule GetModule(string name)
+        {
+            return _modules.Find(module => module.name == name);
+        }
+        private void Awake()
+        {
+            GetAvailableControlModules();
+            _actualModule = 0;
+        }
+
+        private void Start()
+        {
+            
+            DeactivateAllModules();
+            ActivateModule();
+        
+            PlayerInputManager.Instance.OnModeChangeInput += SwitchMode;
+        }
+
+        // Search for modules in sub-objects and insert them into a list
+        // Every time a new module has to be added, it is simply created with an empty sub-object of the control module manager
+        private void GetAvailableControlModules()
+        {
+            for (var i = 0; i < gameObject.transform.childCount; i++)
             {
-                _modules.Add(childModule);
+                var childModule = gameObject.transform.GetChild(i).GetComponent<ControlModule>();
+                if (childModule)
+                {
+                    _modules.Add(childModule);
+                }
             }
         }
-    }
-    private void SwitchMode()
-    {
-        _actualModule = GetNextModule();
-        DeactivateAllModules();
-
-        switch (GetActiveModuleName())
+        private void SwitchMode()
         {
-            case "Ball":
-                _playerAnimator.Close();
-                break;
-            case "Walk":
-                _playerAnimator.Open();
-                break;
+            // Switch only if it's grounded
+            if (Player.Instance.IsGrounded())
+            {
+                _actualModule = GetNextModule();
+                DeactivateAllModules();
+                _modules[_actualModule].OnActivated?.Invoke();
+                
+            }
         }
-    }
 
-    public void ActivateNextModule()
-    {
-        ActivateModule();
-    }
-
-    private int GetNextModule()
-    {
-        int nextModuleIndex = _actualModule + 1;
-        if (nextModuleIndex >= _modules.Count)
+        public void ActivateNextModule()
         {
-            nextModuleIndex = 0;
+            ActivateModule();
         }
-        return nextModuleIndex;
-    }
 
-    /*
-     * Methods that activate/deactivate a control module
-     * Everytime the enabled is changed it triggers the OnEnable/OnDisable function in the module itself
-     */
-    private void ActivateModule()
-    {
-        _modules[_actualModule].enabled = true;
-        Debug.Log("Enabled Module: " + GetActiveModuleName());
-    }
+        public void ActivateKinematic()
+        {
+            Player.Instance.Rigidbody.isKinematic = true;
+        }
+
+        private int GetNextModule()
+        {
+            int nextModuleIndex = _actualModule + 1;
+            if (nextModuleIndex >= _modules.Count)
+            {
+                nextModuleIndex = 0;
+            }
+            return nextModuleIndex;
+        }
+        /*
+         * Methods that activate/deactivate a control module
+         * Everytime the enabled is changed it triggers the OnEnable/OnDisable function in the module itself
+         */
+        private void ActivateModule()
+        {
+            _modules[_actualModule].enabled = true;
+            //Debug.Log("Enabled Module: " + GetActiveModuleName());
+        }
     
-    private void DeactivateAllModules()
-    {
-        int i = 0;
-        foreach (ControlModule module in _modules)
+        private void DeactivateAllModules()
+        {
+            int i = 0;
+            foreach (ControlModule module in _modules)
                 module.enabled = false;
+        }
     }
 }

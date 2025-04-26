@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
+using Player.Animation;
 using UnityEngine;
 
 public class RaycastManager : MonoBehaviour
 {
 
     [SerializeField] private float stepLength = 2.0f;
-    [SerializeField] private float jumpHeight = 20f;
+    [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private string terrainLayer;
     [SerializeField] private float stepAnticipationMultiplier = 25f;
     
     private Rigidbody _rigidbody;
     private CharacterController _characterController;
-    private List<RaycastHit> _hitList = new List<RaycastHit>();
+    private readonly List<RaycastHit> _hitList = new List<RaycastHit>();
     private List<LegAnimator> _legs = new List<LegAnimator>();
-
     
     private Vector3 _lastRootPos;
     private Vector3 _movementDelta;
@@ -31,7 +31,7 @@ public class RaycastManager : MonoBehaviour
 
     void FixedUpdate()
     {
-        _movementDelta = transform.position - _lastRootPos;
+        _movementDelta = _rigidbody.position - _lastRootPos;
         _lastRootPos = _rigidbody.position;
     }
 
@@ -51,10 +51,21 @@ public class RaycastManager : MonoBehaviour
     
     public void ExecuteStepForLeg(LegAnimator leg)
     {
-        // Enhance the raycast in the movement direction in order for the leg to anticipate the body movement
-        Vector3 worldOffset     = _rigidbody.rotation * leg.RelativePosition;
-        Vector3 relativePos     = _rigidbody.position 
-                                  + worldOffset + _movementDelta*stepAnticipationMultiplier;            
+        Vector3 pivot = _rigidbody.position;
+
+        Vector3 euler = _rigidbody.rotation.eulerAngles;
+        Quaternion yawOnly = Quaternion.Euler(0, euler.y, 0);
+        Vector3 horizontalOffset = yawOnly * new Vector3(
+            leg.RelativePosition.x, 0f, leg.RelativePosition.z
+        );
+
+        Vector3 anticipation = new Vector3(
+            _movementDelta.x, 0f, _movementDelta.z
+        ) * stepAnticipationMultiplier;
+
+        Vector3 relativePos = pivot + horizontalOffset + anticipation;
+        relativePos.y = _rigidbody.position.y;
+
         Ray ray = new Ray(relativePos, Vector3.down);
         if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
@@ -66,6 +77,7 @@ public class RaycastManager : MonoBehaviour
                 leg.NewPosition = hit.point;
             }
             _hitList.Add(hit);
+            
         }
     }
     
@@ -95,9 +107,21 @@ public class RaycastManager : MonoBehaviour
         Gizmos.color = Color.yellow;
         foreach (var leg in _legs)
         {
-            Vector3 worldOffset     = _rigidbody.rotation * leg.RelativePosition;
-            Vector3 origin    = _rigidbody.position 
-                                + worldOffset + _movementDelta;
+            Vector3 pivot = _rigidbody.position;
+
+            Vector3 euler = _rigidbody.rotation.eulerAngles;
+            Quaternion yawOnly = Quaternion.Euler(0, euler.y, 0);
+            Vector3 horizontalOffset = yawOnly * new Vector3(
+                leg.RelativePosition.x, 0f, leg.RelativePosition.z
+            );
+
+            Vector3 anticipation = new Vector3(
+                _movementDelta.x, 0f, _movementDelta.z
+            ) * stepAnticipationMultiplier;
+
+            Vector3 origin = pivot + horizontalOffset + anticipation;
+            origin.y = _rigidbody.position.y;
+
             Vector3 direction = Vector3.down;
 
             // Draw full test ray

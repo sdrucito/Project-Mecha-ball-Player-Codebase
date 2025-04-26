@@ -1,38 +1,45 @@
-using System;
-using UnityEditor.Animations;
 using UnityEngine;
 
-public class PlayerAnimator : MonoBehaviour
+namespace Player.Animation
 {
-    [SerializeField] private Animator animator;
-    public bool IsOpening = false;
-    public bool IsClosing = false;
-
-   
-
-    public void Open()
+    public class PlayerAnimator : MonoBehaviour
     {
-        IsOpening = true;
-        animator.SetBool("IsOpening", IsOpening);
-    }
+        [SerializeField] private Animator animator;
+        private bool _isOpening = false;
+        private bool _isClosing = false;
 
-    public void Close()
-    {
-        IsClosing = true;
-        animator.SetBool("IsClosing", IsClosing);
-    }
+
+        private void Start()
+        {
+            Player player = Player.Instance;
+            player.ControlModuleManager.GetModule("Ball").OnActivated += Close;
+            //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
+        }
+
+        public void Open()
+        {
+            _isOpening = true;
+            animator.SetBool("IsOpening", _isOpening);
+        }
+
+        public void Close()
+        {
+            _isClosing = true;
+            animator.SetBool("IsClosing", _isClosing);
+        }
 
     
-    public void OnOpenEnd()
-    {
-        IsOpening = false;
-        animator.SetBool("IsOpening", IsOpening);
-    }
+        public void OnOpenEnd()
+        {
+            _isOpening = false;
+            animator.SetBool("IsOpening", _isOpening);
+        }
     
-    public void OnCloseEnd()
-    {
-        IsClosing = false;
-        animator.SetBool("IsClosing", IsClosing);
-    }
+        public void OnCloseEnd()
+        {
+            _isClosing = false;
+            animator.SetBool("IsClosing", _isClosing);
+        }
     
+    }
 }

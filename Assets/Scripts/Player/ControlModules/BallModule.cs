@@ -1,46 +1,53 @@
 using System;
+using System.Collections;
+using Player.PlayerController;
 using UnityEngine;
+using UnityEngine.Serialization;
 
-public class BallModule : ControlModule
+namespace Player.ControlModules
 {
+    public class BallModule : ControlModule
+    {
     
-    [SerializeField] private float _jumpImpulseMagnitude;
-    [SerializeField] private float _sprintImpulseMagnitude;
-    [SerializeField] private Rigidbody rb;
-    [SerializeField] private Player player;
+        [SerializeField] private float jumpImpulseMagnitude;
+        [SerializeField] private float sprintImpulseMagnitude;
 
-    private void Awake()
-    {
-        name = "Ball";
-    }
-
-    public void OnEnable()
-    {
-        PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
-        PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
-        rb.isKinematic = false;
-    }
-
-    public void OnDisable()
-    {
-        PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
-        PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
-        rb.isKinematic = true;
-
-    }
-
-    private void Input_JumpImpulse()
-    {
-        if(player.IsGrounded())
-            rb.AddForce(Vector3.up * _jumpImpulseMagnitude, ForceMode.Impulse);
-    }
-    
-    private void Input_SprintImpulse(Vector2 direction)
-    {
-        if (player.IsGrounded())
+        private void Awake()
         {
-            //Debug.Log("Firing sprint impulse");
-            rb.AddForce(new Vector3(direction.x,0,direction.y) * _sprintImpulseMagnitude, ForceMode.Impulse);
+            name = "Ball";
+        }
+        
+
+        public void OnEnable()
+        {
+            PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
+            PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
+            if (Player.Instance)
+            {
+                Player.Instance.Rigidbody.isKinematic = false;
+            }
+        }
+
+        public void OnDisable()
+        {
+            PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
+            PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
+
+        }
+
+        private void Input_JumpImpulse()
+        {
+            if(Player.Instance.IsGrounded())
+                Player.Instance.Rigidbody.AddForce(Vector3.up * jumpImpulseMagnitude, ForceMode.Impulse);
+        }
+    
+        private void Input_SprintImpulse(Vector2 direction)
+        {
+            if (Player.Instance.IsGrounded())
+            {
+                //Debug.Log("Firing sprint impulse");
+                Player.Instance.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
+            }
         }
     }
 }

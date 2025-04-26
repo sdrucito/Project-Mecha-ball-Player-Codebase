@@ -1,15 +1,21 @@
+using System;
 using UnityEngine;
+using UnityEngine.Events;
+
 /*
  * Superclass for a Control Module, used by the ControlModuleManager
  * to group all the available modules and decide which one is active
  */
-public class ControlModule : MonoBehaviour
+namespace Player.ControlModules
 {
-
-    protected string _name = "None";
-
-    public string GetName()
+    public class ControlModule : MonoBehaviour
     {
-        return _name;
+
+        protected string _name = "None";
+        public Action OnActivated;
+        public string GetName()
+        {
+            return _name;
+        }
     }
 }
