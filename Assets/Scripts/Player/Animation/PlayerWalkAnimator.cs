@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
+using UnityEngine.Serialization;
 
 namespace Player.Animation
 {
@@ -45,10 +46,10 @@ namespace Player.Animation
         [SerializeField] private Transform rearRightFoot;
 
         // One resolver of each 
-        [SerializeField] SecondOrderDynamics secondOrderDynamics_flF;
-        [SerializeField] SecondOrderDynamics secondOrderDynamics_frF;
-        [SerializeField] SecondOrderDynamics secondOrderDynamics_rlF;
-        [SerializeField] SecondOrderDynamics secondOrderDynamics_rrF;
+        [SerializeField] SecondOrderDynamics secondOrderDynamicsFlF;
+        [SerializeField] SecondOrderDynamics secondOrderDynamicsFrF;
+        [SerializeField] SecondOrderDynamics secondOrderDynamicsRlF;
+        [SerializeField] SecondOrderDynamics secondOrderDynamicsRrF;
 
         [SerializeField] private float stepHeight = 10.0f;
         [SerializeField] private float stepSpeed = 2.0f;
@@ -83,23 +84,23 @@ namespace Player.Animation
         {
 
             // Initialize the second order resolvers for each foot
-            secondOrderDynamics_flF.Initialize(f, z, r, frontLeftFoot.position);
-            secondOrderDynamics_frF.Initialize(f, z, r, frontRightFoot.position);
-            secondOrderDynamics_rlF.Initialize(f, z, r, rearLeftFoot.position);
-            secondOrderDynamics_rrF.Initialize(f, z, r, rearRightFoot.position);
+            secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
+            secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
+            secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
+            secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
 
             Vector3 relativePos = frontLeftFoot.position - center.position;
             relativePos.y += footHeight;
-            _frontLeftFootAnim = new LegAnimator(frontLeftFoot, 1f, frontLeftFoot.position, frontLeftFoot.position, secondOrderDynamics_flF, relativePos);
+            _frontLeftFootAnim = new LegAnimator(frontLeftFoot, 1f, frontLeftFoot.position, frontLeftFoot.position, secondOrderDynamicsFlF, relativePos);
             relativePos = frontRightFoot.position - Player.Instance.Rigidbody.position;
             relativePos.y += footHeight;
-            _frontRightFootAnim = new LegAnimator(frontRightFoot, 1f, frontRightFoot.position, frontRightFoot.position, secondOrderDynamics_frF, relativePos);
+            _frontRightFootAnim = new LegAnimator(frontRightFoot, 1f, frontRightFoot.position, frontRightFoot.position, secondOrderDynamicsFrF, relativePos);
             relativePos = rearLeftFoot.position - Player.Instance.Rigidbody.position;
             relativePos.y += footHeight;
-            _rearLeftFootAnim = new LegAnimator(rearLeftFoot, 1f, rearLeftFoot.position, rearLeftFoot.position, secondOrderDynamics_rlF, relativePos);
+            _rearLeftFootAnim = new LegAnimator(rearLeftFoot, 1f, rearLeftFoot.position, rearLeftFoot.position, secondOrderDynamicsRlF, relativePos);
             relativePos = rearRightFoot.position - Player.Instance.Rigidbody.position;
             relativePos.y += footHeight;
-            _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamics_rrF, relativePos);
+            _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamicsRrF, relativePos);
         
             _legs.Add(_frontLeftFootAnim);
             _legs.Add(_frontRightFootAnim);
@@ -179,12 +180,6 @@ namespace Player.Animation
             }
 
             _wasMoving = isMoving;
-
-
-
-            
-            
-            
             
             if (Player.Instance.RaycastManager)
             {
@@ -283,13 +278,16 @@ namespace Player.Animation
         private void OnEnable()
         {
             Player.Instance.RaycastManager.enabled = true;
-            StartCoroutine(DelaySetWeight());
+            ResetAllLegs();
+            StartCoroutine(FadeInRig(1f));
+
         }
 
         private void OnDisable()
         {
             Player.Instance.RaycastManager.enabled = false;
             legRig.weight = 0.0f;
+            
         }
     
         private IEnumerator DelaySetWeight()
@@ -298,6 +296,42 @@ namespace Player.Animation
             legRig.weight = 1.0f;
         }
         
+        public IEnumerator FadeInRig(float duration)
+        {
+            float elapsed = 0f;
+            legRig.weight = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                legRig.weight = Mathf.Lerp(0f, 1f, elapsed / duration);
+                yield return null;
+            }
+            legRig.weight = 1f;
+        }
+
+        public void ResetAllLegs()
+        {
+            ResetLegRelativePosition(_frontLeftFootAnim);
+            ResetLegRelativePosition(_frontRightFootAnim);
+            ResetLegRelativePosition(_rearLeftFootAnim);
+            ResetLegRelativePosition(_rearRightFootAnim);
+        }
+
+        private void ResetLegRelativePosition(LegAnimator leg)
+        {
+            if (leg != null)
+            {
+                Rigidbody instanceRigidbody = Player.Instance.Rigidbody;
+                Vector3 worldOffset = instanceRigidbody.rotation * leg.RelativePosition;
+                Vector3 resetPos = instanceRigidbody.position + worldOffset;
+                resetPos.y -= stepHeight;
+                leg.Transform.position = resetPos;
+                leg.OldPosition = resetPos;
+                leg.NewPosition = resetPos;
+            }
+            
+        }
 
     
     

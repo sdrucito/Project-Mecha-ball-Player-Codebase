@@ -18,12 +18,15 @@ namespace Player.Animation
 
         public void Open()
         {
+            Player.Instance.Rigidbody.isKinematic = true;
             _isOpening = true;
             animator.SetBool("IsOpening", _isOpening);
+            
         }
 
         public void Close()
         {
+            
             _isClosing = true;
             animator.SetBool("IsClosing", _isClosing);
         }

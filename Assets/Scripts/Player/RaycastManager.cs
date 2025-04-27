@@ -83,7 +83,6 @@ public class RaycastManager : MonoBehaviour
     
     public void ExecuteReturnToIdle(LegAnimator leg)
     {
-        // Enhance the raycast in the movement direction in order for the leg to anticipate the body movement
         Vector3 worldOffset     = _rigidbody.rotation * leg.RelativePosition;
         Vector3 relativePos     = _rigidbody.position 
                                   + worldOffset;            

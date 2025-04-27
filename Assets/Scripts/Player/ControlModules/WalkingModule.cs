@@ -67,8 +67,8 @@ namespace Player.ControlModules
                 transform.rotation = Quaternion.FromToRotation(transform.up, groundNormal) * transform.rotation;
             
                 // Calculate the movement
-                var horizontalMove = Vector3.zero;
-                var projectedMove = Vector3.zero;
+                Vector3 horizontalMove = Vector3.zero;
+                Vector3 projectedMove = Vector3.zero;
                 if (Math.Abs(groundNormal.y) < 0.01f){
                     projectedMove = new Vector3(_inputVector.x, _inputVector.y, 0).normalized;
                 }else{

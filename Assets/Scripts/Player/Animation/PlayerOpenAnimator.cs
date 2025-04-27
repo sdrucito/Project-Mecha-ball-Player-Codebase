@@ -28,6 +28,7 @@ namespace Player.Animation
         public float ki =  1f;       
         public float maxIntegral = 0.5f;
 
+        public float speedDownForce = 0.1f;
         float     _integralError;
         
         [Tooltip("How many degrees of error counts as “aligned”.")]
@@ -40,8 +41,8 @@ namespace Player.Animation
 
             player.ControlModuleManager.GetModule("Walk").OnActivated += OnOpen;
             _onAligned += OnAlignEndend;
-            player.Rigidbody.solverIterations = 12;
-            player.Rigidbody.solverVelocityIterations = 12;
+            player.Rigidbody.solverIterations = 16;
+            player.Rigidbody.solverVelocityIterations = 16;
         }
 
         // Function called when the player fires the switch to Walk state
@@ -58,12 +59,13 @@ namespace Player.Animation
             //StartCoroutine(AlignFast(targetRot, 2.0f));
         }
 
+        // Callback when the body is aligned
         private void OnAlignEndend()
         {
-            Player.Instance.Rigidbody.isKinematic = true;
             playerAnimator.Open();
         }
  
+        // PID Controller function
         public IEnumerator AlignToNormalRoutine(Vector3 groundNormal, Action onAligned)
         {
             Rigidbody rb = Player.Instance.Rigidbody;
@@ -74,29 +76,22 @@ namespace Player.Animation
                 float   angleDeg  = Vector3.Angle(currentUp, groundNormal);
                 if (angleDeg <= alignmentTolerance) break;
 
-                // --- compute axis & error (in radians)
                 Vector3 axis     = Vector3.Cross(currentUp, groundNormal).normalized;
                 float   angleRad = angleDeg * Mathf.Deg2Rad;
 
-                // --- integral update & clamp (anti-windup)
                 _integralError += angleRad * Time.fixedDeltaTime;
                 _integralError = Mathf.Clamp(_integralError, -maxIntegral, maxIntegral);
 
-                // --- derivative: component of ω along the axis
                 Vector3 omegaAlong = Vector3.Dot(rb.angularVelocity, axis) * axis;
 
-                // --- PID torque
-                Vector3 torque = axis * (kp * angleRad   // P
-                                         + ki * _integralError)  // I
-                                 - (kd * omegaAlong);   // D
+                Vector3 torque = axis * (kp * angleRad + ki * _integralError) - (kd * omegaAlong);
 
                 rb.AddTorque(torque, ForceMode.VelocityChange);
-
+                rb.AddForce(-rb.linearVelocity.normalized*speedDownForce, ForceMode.VelocityChange);
                 yield return new WaitForFixedUpdate();
             }
 
             onAligned?.Invoke();
-            yield break;
         }
 
         IEnumerator AlignFast(Quaternion targetRot, float duration)
