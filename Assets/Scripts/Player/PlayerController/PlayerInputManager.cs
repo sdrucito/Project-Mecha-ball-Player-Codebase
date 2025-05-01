@@ -56,6 +56,38 @@ namespace Player.PlayerController
                 OnSprintImpulseInput?.Invoke(_currentMoveInput);
             }
         }
+
+        public void SetActionEnabled(string actionName, bool enabled)
+        {
+            var action = _playerInput.actions.FindAction(actionName);
+            if (action == null)
+            {
+                Debug.LogWarning($"No action called '{actionName}'");
+                return;
+            }
+
+            if (enabled)
+            {
+                ResetAction(actionName);
+            }
+            else
+            {
+                action.Disable();
+            }
+        }
+        
+        
+        public void ResetAction(string actionName)
+        {
+            var action = _playerInput.actions.FindAction(actionName);
+            if (action == null)
+            {
+                Debug.LogWarning($"[ResetAction] No action named '{actionName}'");
+                return;
+            }
+            action.Disable();  
+            action.Enable();
+        }
     
     }
 }

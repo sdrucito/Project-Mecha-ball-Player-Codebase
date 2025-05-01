@@ -64,7 +64,7 @@ namespace Player.ControlModules
                 // Rotate the player according to normal
                 var groundNormal = Player.Instance.GetGroundNormal();
                 Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
-                transform.rotation = Quaternion.FromToRotation(transform.up, groundNormal) * transform.rotation;
+                transform.parent.rotation *= Quaternion.FromToRotation(transform.parent.up, groundNormal);
             
                 // Calculate the movement
                 Vector3 horizontalMove = Vector3.zero;
@@ -79,7 +79,7 @@ namespace Player.ControlModules
                 _controller.Move(move);
             
                 // Apply the Gravity
-                _controller.Move(-groundNormal * 0.1f);
+                //_controller.Move(-groundNormal * 0.1f);
             }else {
                 // TODO to test this part
                 _verticalVelocity += Gravity * Time.fixedDeltaTime;

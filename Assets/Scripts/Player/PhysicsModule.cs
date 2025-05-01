@@ -30,7 +30,7 @@ namespace Player
     
         private Queue<string> _collisionTags = new Queue<string>();
         private float _collisionAngle;
-        private Vector3 _groundNormal;
+        public Vector3 _groundNormal;
         
         
 

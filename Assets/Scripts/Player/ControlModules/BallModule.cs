@@ -26,6 +26,7 @@ namespace Player.ControlModules
             {
                 Player.Instance.Rigidbody.isKinematic = false;
             }
+            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
         }
 
         public void OnDisable()

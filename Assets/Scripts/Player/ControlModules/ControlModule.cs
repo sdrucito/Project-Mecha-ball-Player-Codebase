@@ -1,4 +1,5 @@
 using System;
+using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -10,12 +11,12 @@ namespace Player.ControlModules
 {
     public class ControlModule : MonoBehaviour
     {
-
-        protected string _name = "None";
+        protected const string Name = "None";
         public Action OnActivated;
         public string GetName()
         {
-            return _name;
+            return Name;
         }
+        
     }
 }

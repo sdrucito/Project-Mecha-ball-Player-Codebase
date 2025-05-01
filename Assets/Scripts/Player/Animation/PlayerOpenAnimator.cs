@@ -29,7 +29,7 @@ namespace Player.Animation
         public float maxIntegral = 0.5f;
 
         public float speedDownForce = 0.1f;
-        float     _integralError;
+        float _integralError;
         
         [Tooltip("How many degrees of error counts as “aligned”.")]
         public float   alignmentTolerance = 0.5f;
@@ -49,12 +49,8 @@ namespace Player.Animation
         // Manages how the player ball should rotate before starting to switch
         private void OnOpen()
         {
-            List<Vector3> positions = FindFreeSpots();
-
-            Vector3 movePosition = FindBestPosition(positions);
             Vector3 projFwd = Vector3.ProjectOnPlane(transform.forward, Player.Instance.PhysicsModule.GetGroundNormal()).normalized;
             Quaternion targetRot = Quaternion.LookRotation(projFwd, Player.Instance.PhysicsModule.GetGroundNormal());
-            //lignToNormal(Player.Instance.PhysicsModule.GetGroundNormal());
             StartCoroutine(AlignToNormalRoutine(Player.Instance.PhysicsModule.GetGroundNormal(), _onAligned));
             //StartCoroutine(AlignFast(targetRot, 2.0f));
         }
@@ -112,8 +108,9 @@ namespace Player.Animation
 
 
         }
-
-        // Method that takes the linear velocity and calculates the best position regarding to it
+        
+        /*
+         // Method that takes the linear velocity and calculates the best position regarding to it
         private Vector3 FindBestPosition(List<Vector3> positions)
         {
             Vector3 movementDirection = Player.Instance.Rigidbody.linearVelocity;
@@ -174,16 +171,7 @@ namespace Player.Animation
 
             return freeSpots;
         }
+         */
         
-        void OnDrawGizmosSelected()
-        {
-            if (!Application.isPlaying) return;
-            Gizmos.color = Color.green;
-            foreach (var pos in FindFreeSpots())
-                Gizmos.DrawWireCube(
-                    pos + Vector3.down * 0.05f,
-                    new Vector3(spotDimensions.x, 0.1f, spotDimensions.y)
-                );
-        }
     }
 }

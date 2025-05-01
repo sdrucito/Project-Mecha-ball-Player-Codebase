@@ -55,18 +55,14 @@ public class RaycastManager : MonoBehaviour
 
         Vector3 euler = _rigidbody.rotation.eulerAngles;
         Quaternion yawOnly = Quaternion.Euler(0, euler.y, 0);
-        Vector3 horizontalOffset = yawOnly * new Vector3(
-            leg.RelativePosition.x, 0f, leg.RelativePosition.z
-        );
+        Vector3 horizontalOffset = yawOnly * new Vector3(leg.RelativePosition.x, 0f, leg.RelativePosition.z);
 
-        Vector3 anticipation = new Vector3(
-            _movementDelta.x, 0f, _movementDelta.z
-        ) * stepAnticipationMultiplier;
+        Vector3 anticipation = new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
 
         Vector3 relativePos = pivot + horizontalOffset + anticipation;
         relativePos.y = _rigidbody.position.y;
 
-        Ray ray = new Ray(relativePos, Vector3.down);
+        Ray ray = new Ray(relativePos, -_rigidbody.transform.up.normalized);
         if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             // Verify if the hit distance is greater than the step length
@@ -84,9 +80,8 @@ public class RaycastManager : MonoBehaviour
     public void ExecuteReturnToIdle(LegAnimator leg)
     {
         Vector3 worldOffset     = _rigidbody.rotation * leg.RelativePosition;
-        Vector3 relativePos     = _rigidbody.position 
-                                  + worldOffset;            
-        Ray ray = new Ray(relativePos, Vector3.down);
+        Vector3 relativePos     = _rigidbody.position + worldOffset;            
+        Ray ray = new Ray(relativePos, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             if (leg.Lerp >= 1f)
@@ -110,18 +105,14 @@ public class RaycastManager : MonoBehaviour
 
             Vector3 euler = _rigidbody.rotation.eulerAngles;
             Quaternion yawOnly = Quaternion.Euler(0, euler.y, 0);
-            Vector3 horizontalOffset = yawOnly * new Vector3(
-                leg.RelativePosition.x, 0f, leg.RelativePosition.z
-            );
+            Vector3 horizontalOffset = yawOnly * new Vector3(leg.RelativePosition.x, 0f, leg.RelativePosition.z);
 
-            Vector3 anticipation = new Vector3(
-                _movementDelta.x, 0f, _movementDelta.z
-            ) * stepAnticipationMultiplier;
+            Vector3 anticipation = new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
 
             Vector3 origin = pivot + horizontalOffset + anticipation;
             origin.y = _rigidbody.position.y;
 
-            Vector3 direction = Vector3.down;
+            Vector3 direction = -_rigidbody.transform.up.normalized;
 
             // Draw full test ray
             Gizmos.DrawLine(origin, origin + direction * jumpHeight);

@@ -57,6 +57,7 @@ namespace Player.PlayerController
             // Switch only if it's grounded
             if (Player.Instance.IsGrounded())
             {
+                PlayerInputManager.Instance.SetActionEnabled("ChangeMode", false);
                 _actualModule = GetNextModule();
                 DeactivateAllModules();
                 _modules[_actualModule].OnActivated?.Invoke();
@@ -67,6 +68,7 @@ namespace Player.PlayerController
         public void ActivateNextModule()
         {
             ActivateModule();
+
         }
 
         public void ActivateKinematic()

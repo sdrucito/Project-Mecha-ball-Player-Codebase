@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 using UnityEngine.Serialization;
@@ -280,7 +281,7 @@ namespace Player.Animation
             Player.Instance.RaycastManager.enabled = true;
             ResetAllLegs();
             StartCoroutine(FadeInRig(1f));
-
+            //StartCoroutine(DelaySetWeight());
         }
 
         private void OnDisable()
@@ -292,6 +293,7 @@ namespace Player.Animation
     
         private IEnumerator DelaySetWeight()
         {
+            yield return null; 
             yield return null;          
             legRig.weight = 1.0f;
         }
@@ -308,6 +310,9 @@ namespace Player.Animation
                 yield return null;
             }
             legRig.weight = 1f;
+            // Re-Activate switch input
+            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+            
         }
 
         public void ResetAllLegs()
