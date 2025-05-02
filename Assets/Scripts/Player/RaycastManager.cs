@@ -40,6 +40,11 @@ public class RaycastManager : MonoBehaviour
         _legs = legs;
     }
 
+    public Vector3 GetMovementDelta()
+    {
+        return _movementDelta;
+    }
+
     public List<RaycastHit> GetHitList()
     {
         return _hitList;
@@ -51,18 +56,12 @@ public class RaycastManager : MonoBehaviour
     
     public void ExecuteStepForLeg(LegAnimator leg)
     {
-        Vector3 pivot = _rigidbody.position;
 
-        Vector3 euler = _rigidbody.rotation.eulerAngles;
-        Quaternion yawOnly = Quaternion.Euler(0, euler.y, 0);
-        Vector3 horizontalOffset = yawOnly * new Vector3(leg.RelativePosition.x, 0f, leg.RelativePosition.z);
+        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        //Vector3 relativePos = pivot + horizontalOffset + anticipation;
+        //relativePos.y = _rigidbody.position.y;
 
-        Vector3 anticipation = new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
-
-        Vector3 relativePos = pivot + horizontalOffset + anticipation;
-        relativePos.y = _rigidbody.position.y;
-
-        Ray ray = new Ray(relativePos, -_rigidbody.transform.up.normalized);
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             // Verify if the hit distance is greater than the step length
@@ -79,9 +78,15 @@ public class RaycastManager : MonoBehaviour
     
     public void ExecuteReturnToIdle(LegAnimator leg)
     {
-        Vector3 worldOffset     = _rigidbody.rotation * leg.RelativePosition;
-        Vector3 relativePos     = _rigidbody.position + worldOffset;            
-        Ray ray = new Ray(relativePos, -_rigidbody.transform.up);
+        Transform reference = _rigidbody.transform;
+        
+        Quaternion bodyRot = reference.rotation;
+        Vector3 fullOffset = bodyRot * leg.RelativePosition;
+        Vector3 worldOrigin = _rigidbody.transform.position 
+                              + fullOffset;
+        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             if (leg.Lerp >= 1f)
@@ -93,25 +98,28 @@ public class RaycastManager : MonoBehaviour
             _hitList.Add(hit);
         }
     }
-    
-    
+
+    private Vector3 ComputeLegPositionForStep(LegAnimator leg)
+    {
+        
+        Transform reference = _rigidbody.transform;
+        
+        Quaternion bodyRot = reference.rotation;
+        Vector3 fullOffset = bodyRot * leg.RelativePosition;
+        Vector3 anticipation = bodyRot * new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
+        Vector3 worldOrigin = _rigidbody.transform.position 
+                              + fullOffset 
+                              + anticipation;
+        return worldOrigin;
+    }
  
-  private void OnDrawGizmos()
+    private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
         foreach (var leg in _legs)
         {
-            Vector3 pivot = _rigidbody.position;
-
-            Vector3 euler = _rigidbody.rotation.eulerAngles;
-            Quaternion yawOnly = Quaternion.Euler(0, euler.y, 0);
-            Vector3 horizontalOffset = yawOnly * new Vector3(leg.RelativePosition.x, 0f, leg.RelativePosition.z);
-
-            Vector3 anticipation = new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
-
-            Vector3 origin = pivot + horizontalOffset + anticipation;
-            origin.y = _rigidbody.position.y;
-
+         
+            Vector3 origin = ComputeLegPositionForStep(leg);
             Vector3 direction = -_rigidbody.transform.up.normalized;
 
             // Draw full test ray

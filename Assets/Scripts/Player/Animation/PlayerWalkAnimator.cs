@@ -79,7 +79,7 @@ namespace Player.Animation
         private StepGroup _currentGroup = StepGroup.Idle;
         private bool _wasMoving = false;
 
-    
+        private Vector3 _lastPosition;
 
         void Start()
         {
@@ -113,12 +113,26 @@ namespace Player.Animation
         
             _groupBLegs.Add(_frontRightFootAnim);
             _groupBLegs.Add(_rearLeftFootAnim);
+            _lastPosition = transform.position;
+        }
+
+        private bool VerifyMove()
+        {
+            if ((transform.position - _lastPosition).magnitude < 0.01f)
+            {
+                _lastPosition = transform.position;
+                return false;
+            }
+        
+            _lastPosition = transform.position;
+            return true;
+            
         }
 
         void FixedUpdate()
         {
             // Call the update for each leg and set the new IK position
-            bool isMoving = transform.hasChanged;
+            bool isMoving = VerifyMove();
             transform.hasChanged = false;
             // Detect fresh start from idle
             if (isMoving && !_wasMoving && _currentGroup == StepGroup.Idle)
@@ -144,6 +158,7 @@ namespace Player.Animation
             if (IsStopped(isMoving))
             {
                 _currentGroup = StepGroup.Idle;
+                ReturnLegToIdle();
             }
             
             // Allow step verification for Idle to fire grounding control
@@ -161,7 +176,7 @@ namespace Player.Animation
             else if (_currentGroup == StepGroup.Floating)
             {
                 _currentGroup = StepGroup.Idle;
-
+                ReturnLegToIdle();
             }
             if (_currentGroup == StepGroup.Floating)
             {
@@ -232,10 +247,11 @@ namespace Player.Animation
                 float verticalOffset = 0f;
                 verticalOffset = Mathf.Sin(legAnimator.Lerp * Mathf.PI) * stepHeight;
         
-                // Second order function that commands the xz plain movement
                 Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.deltaTime, legAnimator.NewPosition);
-           
-                legAnimator.Transform.position = new Vector3(planarPos.x, legAnimator.NewPosition.y + verticalOffset, planarPos.z);
+                Vector3 localVertical = transform.parent.transform.up * verticalOffset;
+                Vector3 finalPos = new Vector3(planarPos.x, legAnimator.NewPosition.y, planarPos.z) + localVertical;
+                legAnimator.Transform.position = finalPos;
+
                 if (legAnimator.Lerp >= 1f)
                 {
                     legAnimator.OldPosition = legAnimator.NewPosition;

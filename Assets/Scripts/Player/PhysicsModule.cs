@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Player.PlayerController;
 using UnityEngine;
@@ -23,41 +24,102 @@ namespace Player
 
     public class PhysicsModule : MonoBehaviour
     {
-        [SerializeField] private float minCorrelationForTransition = 0.5f;
+        [SerializeField] private float minCorrelationForTransition = 0.1f;
     
         private bool _isGrounded;
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
     
         private Queue<string> _collisionTags = new Queue<string>();
         private float _collisionAngle;
-        public Vector3 _groundNormal;
-        
+        private Vector3 _groundNormal;
+
+        private bool _isRotating = false; 
+        public bool IsRotating
+        {
+            get => _isRotating;
+        }
         
 
         private void FixedUpdate()
         {
             SetWalkGrounded();
+            Debug.Log("IsRotating: " + _isRotating);
         }
 
         private void SetWalkGrounded()
         {
+            RaycastManager raycastManager = Player.Instance.RaycastManager;
             if (Player.Instance.ControlModuleManager && Player.Instance.ControlModuleManager.GetActiveModuleName() == "Walk")
             {
-                if (Player.Instance.RaycastManager)
+                if (raycastManager)
                 {
-                    List<RaycastHit> hits = Player.Instance.RaycastManager.GetHitList();
+                    List<RaycastHit> hits = raycastManager.GetHitList();
                     if (hits.Count > 1)
                     {
+                        // Is walking normally
                         _isGrounded = true;
-                        _groundNormal = hits[0].normal;
+                        UpdateGroundNormal(hits, raycastManager);
                     }
                     else
                     {
+                        // During walking, the robot has stepped on a falling point
+                        StartCoroutine(FallCoroutine());
+
                         _isGrounded = false;
                     }
                     
                 }
             }
+        }
+
+        private void Fall()
+        {
+            // Apply movement in the direction of fall to simulate the weight
+            CharacterController characterController = Player.Instance.CharacterController;
+            Vector3 movementDirection = Player.Instance.RaycastManager.GetMovementDelta();
+            
+            // Apply first horizontal movement
+            
+            Player.Instance.ControlModuleManager.SwitchMode();
+        }
+
+        private IEnumerator FallCoroutine()
+        {
+            yield return new WaitForSeconds(2);
+            
+            yield return null;
+        }
+
+        private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
+        {
+            if (!_isRotating)
+            {
+                float maxCorrelation = 0.0f;
+                foreach (var hit in hits)
+                {
+                    float correlation = GetMovementCorrelation(hit.point, raycastManager.GetMovementDelta());
+                    if (correlation > maxCorrelation && correlation > minCorrelationForTransition)
+                    {
+                        if (hit.normal != _groundNormal)
+                        {
+                            _isRotating = true;
+                        }
+                        else
+                        {
+                            _isRotating = false;
+                        }
+                        _groundNormal = hit.normal;
+                        maxCorrelation = correlation;
+                    }
+                }
+            }
+            
+        }
+
+      
+        public void OnRotatingEnd()
+        {
+            _isRotating = false;
         }
 
         public void OnEnterPhysicsUpdate(CollisionData hitData)
@@ -140,9 +202,9 @@ namespace Player
         }
 
         /*
-     * Function that calculates the movement correlation for each contact points
-     * and chooses the one with the highest value of correlation
-     */
+         * Function that calculates the movement correlation for each contact points
+         * and chooses the one with the highest value of correlation
+         */
         private void GetCollisionPoint(Vector3 instantaneousVelocity, out ContactPoint? contactPoint)
         {
             if (_contactPoints.Count > 0)
@@ -181,8 +243,10 @@ namespace Player
      */
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
-            Vector3 positionVector = point - Player.Instance.Rigidbody.position;
-            return Vector3.Dot(positionVector, velocity);
+            Vector3 toPointXZ = new Vector3(point.x - Player.Instance.Rigidbody.position.x, 0f, point.z - Player.Instance.Rigidbody.position.z);
+            Vector3 velXZ = new Vector3(velocity.x, 0f, velocity.z);
+
+            return Vector3.Dot(toPointXZ.normalized, velXZ.normalized);
         }
     }
 }

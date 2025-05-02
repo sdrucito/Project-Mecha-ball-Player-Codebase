@@ -18,6 +18,9 @@ namespace Player.ControlModules
         private Vector2 _inputVector = Vector2.zero;
     
         [SerializeField] private PlayerWalkAnimator playerWalkAnimator;
+        
+        private Quaternion _targetRotation = Quaternion.identity;
+        [SerializeField] private const float rotationSpeed = 90f;
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Awake()
         {
@@ -44,7 +47,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
-                _controller.enabled = false;
+                //_controller.enabled = false;
                 playerWalkAnimator.enabled = false;
 
             }
@@ -64,8 +67,8 @@ namespace Player.ControlModules
                 // Rotate the player according to normal
                 var groundNormal = Player.Instance.GetGroundNormal();
                 Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
-                transform.parent.rotation *= Quaternion.FromToRotation(transform.parent.up, groundNormal);
-            
+                _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
+                ApplyRotation();
                 // Calculate the movement
                 Vector3 horizontalMove = Vector3.zero;
                 Vector3 projectedMove = Vector3.zero;
@@ -76,16 +79,52 @@ namespace Player.ControlModules
                     projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
                 }
                 var move = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
-                _controller.Move(move);
+                if(move != Vector3.zero)
+                    _controller.Move(move);
             
                 // Apply the Gravity
-                //_controller.Move(-groundNormal * 0.1f);
-            }else {
-                // TODO to test this part
-                _verticalVelocity += Gravity * Time.fixedDeltaTime;
-                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
-                _controller.Move(fall * Time.fixedDeltaTime);
+                //_controller.Move(-groundNormal * 
+                ApplyTouchGrounded();
             }
+            else
+            {
+                ApplyGravity();
+            }
+            
+        }
+
+        private void ApplyRotation()
+        {
+            PhysicsModule physicsModule = Player.Instance.PhysicsModule;
+            if (physicsModule && physicsModule.IsRotating)
+            {
+                Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
+
+                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
+                if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
+                    physicsModule.OnRotatingEnd();
+            }
+
+        }
+
+        public void ApplyFall()
+        {
+            
+        }
+
+        private void ApplyTouchGrounded()
+        {
+            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
+            _controller.Move(attach * Time.fixedDeltaTime);
+            //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
+
+        }
+        private void ApplyGravity()
+        {
+            // TODO to test this part
+            _verticalVelocity += Gravity * Time.fixedDeltaTime;
+            Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
+            _controller.Move(fall * Time.fixedDeltaTime);
         }
     
         private void HandleMovement(Vector2 input){

@@ -52,7 +52,7 @@ namespace Player.PlayerController
                 }
             }
         }
-        private void SwitchMode()
+        public void SwitchMode()
         {
             // Switch only if it's grounded
             if (Player.Instance.IsGrounded())

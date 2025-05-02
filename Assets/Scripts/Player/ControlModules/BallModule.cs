@@ -24,6 +24,8 @@ namespace Player.ControlModules
             PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
             if (Player.Instance)
             {
+                Player.Instance.CharacterController.enabled = false;
+
                 Player.Instance.Rigidbody.isKinematic = false;
             }
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
