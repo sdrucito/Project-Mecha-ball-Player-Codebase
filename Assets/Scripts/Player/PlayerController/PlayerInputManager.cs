@@ -25,6 +25,9 @@ namespace Player.PlayerController
     
         private Vector2 _currentMoveInput = Vector2.zero;
         private bool _isSprintImpulse = false;
+        private float _inputRotationAngle = 0f;
+        
+        #region Private Methods
         private void Awake()
         {
             if (Instance == null)
@@ -57,13 +60,28 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
-            OnMoveInput?.Invoke(_currentMoveInput);
+            var input = RotateInput(_currentMoveInput, _inputRotationAngle);
+            OnMoveInput?.Invoke(input);
             if (_isSprintImpulse && _currentMoveInput != Vector2.zero)
             {
                 OnSprintImpulseInput?.Invoke(_currentMoveInput);
             }
         }
+        
+        private Vector2 RotateInput(Vector2 input, float angleDegrees)
+        {
+            if (angleDegrees == 0) return input;
+            var radians = angleDegrees * Mathf.Deg2Rad;
+            var cos = Mathf.Cos(radians);
+            var sin = Mathf.Sin(radians);
+            return new Vector2(
+                input.x * cos - input.y * sin,
+                input.x * sin + input.y * cos
+            );
+        }
+        #endregion
 
+        #region Public Methods
         public void SetActionEnabled(string actionName, bool enabled)
         {
             var action = _playerInput.actions.FindAction(actionName);
@@ -95,6 +113,12 @@ namespace Player.PlayerController
             action.Disable();  
             action.Enable();
         }
-    
+        
+        public void SetInputRotation(float angle)
+        {
+            _inputRotationAngle = angle;
+        }
+        #endregion
+
     }
 }
