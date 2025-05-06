@@ -53,13 +53,17 @@ namespace Player.ControlModules
             }
 
         }
-
+        private void HandleMovement(Vector2 input){
+            _inputVector = input;
+        }
+        
         // Update is called once per frame
         void FixedUpdate()
         {
             ExecuteMovement();
         }
 
+        #region Movement Logic
         private void ExecuteMovement()
         {
             if (Player.Instance.IsGrounded())
@@ -125,9 +129,7 @@ namespace Player.ControlModules
             Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
             _controller.Move(fall * Time.fixedDeltaTime);
         }
-    
-        private void HandleMovement(Vector2 input){
-            _inputVector = input;
-        }
+        
+        #endregion
     }
 }

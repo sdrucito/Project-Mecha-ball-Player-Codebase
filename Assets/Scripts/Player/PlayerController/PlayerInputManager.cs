@@ -60,11 +60,11 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
-            var input = RotateInput(_currentMoveInput, _inputRotationAngle);
-            OnMoveInput?.Invoke(input);
+            var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle);
+            OnMoveInput?.Invoke(inputCameraRelative);
             if (_isSprintImpulse && _currentMoveInput != Vector2.zero)
             {
-                OnSprintImpulseInput?.Invoke(_currentMoveInput);
+                OnSprintImpulseInput?.Invoke(inputCameraRelative);
             }
         }
         
