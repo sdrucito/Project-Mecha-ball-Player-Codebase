@@ -73,7 +73,7 @@ namespace Player.ControlModules
                 Vector3 horizontalMove = Vector3.zero;
                 Vector3 projectedMove = Vector3.zero;
                 if (Math.Abs(groundNormal.y) < 0.01f){
-                    projectedMove = new Vector3(_inputVector.x, _inputVector.y, 0).normalized;
+                    projectedMove = new Vector3(0, -_inputVector.x, _inputVector.y).normalized;
                 }else{
                     horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
                     projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
@@ -121,7 +121,6 @@ namespace Player.ControlModules
         }
         private void ApplyGravity()
         {
-            // TODO to test this part
             _verticalVelocity += Gravity * Time.fixedDeltaTime;
             Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
             _controller.Move(fall * Time.fixedDeltaTime);
