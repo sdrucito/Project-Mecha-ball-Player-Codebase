@@ -65,6 +65,11 @@ namespace Player
             return _physicsModule.IsGrounded();
         }
 
+        public bool CanMove(Vector3 movement)
+        {
+            return _physicsModule.CanMove(movement);
+        }
+
         public Vector3 GetGroundNormal()
         {
             return _physicsModule.GetGroundNormal();

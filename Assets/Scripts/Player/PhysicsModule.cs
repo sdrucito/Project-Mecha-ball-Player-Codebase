@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Player.PlayerController;
@@ -38,12 +39,12 @@ namespace Player
         {
             get => _isRotating;
         }
-        
+
 
         private void FixedUpdate()
         {
             SetWalkGrounded();
-            Debug.Log("IsRotating: " + _isRotating);
+            //Debug.Log("GroundNormal: " + _groundNormal);
         }
 
         private void SetWalkGrounded()
@@ -63,14 +64,39 @@ namespace Player
                     else
                     {
                         // During walking, the robot has stepped on a falling point
-                        StartCoroutine(FallCoroutine());
-
                         _isGrounded = false;
                     }
                     
                 }
             }
         }
+        
+        public bool CanMove(Vector3 movement)
+        {
+            //Debug.DrawLine(Player.Instance.Rigidbody.position, Player.Instance.Rigidbody.position + movement*50.0f, Color.green);
+            if (movement.magnitude > 0.0f)
+            {
+                RaycastManager raycastManager = Player.Instance.RaycastManager;
+                List<RaycastHit> hits = raycastManager.GetHitList();
+                float maxCorrelation = 0.0f;
+                foreach (var hit in hits)
+                {
+                    float correlation = GetMovementCorrelation(hit.point, movement);
+                    //Debug.Log("Computed correlation: " + correlation);
+                    if (correlation > maxCorrelation)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+            
+        }
+
 
         private void Fall()
         {
@@ -83,39 +109,39 @@ namespace Player
             Player.Instance.ControlModuleManager.SwitchMode();
         }
 
-        private IEnumerator FallCoroutine()
-        {
-            yield return new WaitForSeconds(2);
-            
-            yield return null;
-        }
-
         private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
         {
             if (!_isRotating)
             {
-                float maxCorrelation = 0.0f;
-                foreach (var hit in hits)
+                if (raycastManager.GetMovementDelta().magnitude > 0.0f)
                 {
-                    float correlation = GetMovementCorrelation(hit.point, raycastManager.GetMovementDelta());
-                    if (correlation > maxCorrelation && correlation > minCorrelationForTransition)
+                    float maxCorrelation = 0.0f;
+                    foreach (var hit in hits)
                     {
-                        if (hit.normal != _groundNormal)
+                        float correlation = GetMovementCorrelation(hit.point, raycastManager.GetMovementDelta());
+                        if (correlation > maxCorrelation && correlation > minCorrelationForTransition)
                         {
-                            _isRotating = true;
+                            if (hit.normal != _groundNormal)
+                            {
+                                _isRotating = true;
+                            }
+                            else
+                            {
+                                _isRotating = false;
+                            }
+                            _groundNormal = hit.normal;
+                            maxCorrelation = correlation;
                         }
-                        else
-                        {
-                            _isRotating = false;
-                        }
-                        _groundNormal = hit.normal;
-                        maxCorrelation = correlation;
                     }
+                }
+                else
+                {
+                    _groundNormal = hits[0].normal;
                 }
             }
             
         }
-
+        
       
         public void OnRotatingEnd()
         {
@@ -127,7 +153,8 @@ namespace Player
             switch (hitData.Tag)
             {
                 case "Ground":
-                    _collisionAngle = GetCollisionAngle(hitData);
+                    //_collisionAngle = GetCollisionAngle(hitData);
+                    _groundNormal = GetCollisionNormal(hitData);
                     break;
             }
             _collisionTags.Enqueue(hitData.Tag);
@@ -173,22 +200,42 @@ namespace Player
         {
             return _groundNormal;
         }
-
-    
-        /*
-     * Function that calculates the *new* ground angle
-     * when a collision is triggered, thus when the player moves from one terrain to another
-     */
-        private float GetCollisionAngle(CollisionData hitData)
-        {
-            // Take all contact points
-            int numContactPoints = hitData.CollisionInfo.GetContacts(_contactPoints);
         
+        private Vector3 GetCollisionNormal(CollisionData hitData)
+        {
             // Take the instantaneous velocity of the player to infer its movement direction
             // and understand the correct terrain point to consider
             Vector3 instantaneousVelocity = Player.Instance.Rigidbody.linearVelocity;
+            hitData.CollisionInfo.GetContacts(_contactPoints);
             ContactPoint? collisionPoint; 
             GetCollisionPoint(instantaneousVelocity, out collisionPoint);
+            Debug.Log("CollisionPoint: " + collisionPoint);
+
+            // Get the normal and calculate the global angle with respect to the global Y axis
+            if (collisionPoint.HasValue)
+            {
+                return collisionPoint.Value.normal;
+            }
+            else
+            {
+                return Vector3.zero;
+            }
+        }
+
+    
+        /*
+            * Function that calculates the *new* ground angle
+            * when a collision is triggered, thus when the player moves from one terrain to another
+        */
+        private float GetCollisionAngle(CollisionData hitData)
+        {
+            // Take the instantaneous velocity of the player to infer its movement direction
+            // and understand the correct terrain point to consider
+            Vector3 instantaneousVelocity = Player.Instance.Rigidbody.linearVelocity;
+            hitData.CollisionInfo.GetContacts(_contactPoints);
+            ContactPoint? collisionPoint; 
+            GetCollisionPoint(instantaneousVelocity, out collisionPoint);
+            //Debug.Log("CollisionPoint: " + collisionPoint);
         
             // Get the normal and calculate the global angle with respect to the global Y axis
             if (collisionPoint.HasValue)
@@ -207,6 +254,7 @@ namespace Player
          */
         private void GetCollisionPoint(Vector3 instantaneousVelocity, out ContactPoint? contactPoint)
         {
+            
             if (_contactPoints.Count > 0)
             {
                 float maxCorrelation = GetMovementCorrelation(_contactPoints[0].point, instantaneousVelocity);
@@ -238,15 +286,21 @@ namespace Player
         }
 
         /*
-     * Function that estimates the probability that the player is moving
-     * toward a point given its instant velocity
-     */
+         * Function that estimates the probability that the player is moving
+         * toward a point given its instant velocity
+         */
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
-            Vector3 toPointXZ = new Vector3(point.x - Player.Instance.Rigidbody.position.x, 0f, point.z - Player.Instance.Rigidbody.position.z);
-            Vector3 velXZ = new Vector3(velocity.x, 0f, velocity.z);
+            
+            Rigidbody rb= Player.Instance.Rigidbody;
+            Vector3 worldTo = new Vector3(point.x - rb.position.x, point.y - rb.position.y, point.z - rb.position.z);
+            Vector3 toPointLocal = rb.transform.InverseTransformPoint(point);
+            toPointLocal.y = 0;
+            Quaternion invRot = Quaternion.Inverse(transform.rotation);
+            Vector3 toLocal = invRot * worldTo;
 
-            return Vector3.Dot(toPointXZ.normalized, velXZ.normalized);
+            Debug.DrawLine(rb.position, rb.position + toPointLocal * 5.0f, Color.magenta);
+            return Vector3.Dot(toPointLocal.normalized, velocity.normalized);
         }
     }
 }

@@ -53,7 +53,10 @@ public class RaycastManager : MonoBehaviour
     {
         _hitList.Clear();
     }
-    
+
+    /*
+     * Function that verifies if the player can move basing on the anticipation for leg
+     */
     public void ExecuteStepForLeg(LegAnimator leg)
     {
 
@@ -74,6 +77,7 @@ public class RaycastManager : MonoBehaviour
             _hitList.Add(hit);
             
         }
+        
     }
     
     public void ExecuteReturnToIdle(LegAnimator leg)
@@ -98,6 +102,7 @@ public class RaycastManager : MonoBehaviour
             _hitList.Add(hit);
         }
     }
+    
 
     private Vector3 ComputeLegPositionForStep(LegAnimator leg)
     {
@@ -106,7 +111,7 @@ public class RaycastManager : MonoBehaviour
         
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 anticipation = bodyRot * new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
+        Vector3 anticipation = new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
         Vector3 worldOrigin = _rigidbody.transform.position 
                               + fullOffset 
                               + anticipation;

@@ -37,7 +37,8 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
-                _controller.enabled = true;
+                if(_controller)
+                    _controller.enabled = true;
                 playerWalkAnimator.enabled = true;
             }
         }
@@ -66,23 +67,15 @@ namespace Player.ControlModules
         #region Movement Logic
         private void ExecuteMovement()
         {
-            if (Player.Instance.IsGrounded())
+            var groundNormal = Player.Instance.GetGroundNormal();
+            var move = GetMovement(groundNormal);
+            if (Player.Instance.CanMove(move))
             {
                 // Rotate the player according to normal
-                var groundNormal = Player.Instance.GetGroundNormal();
-                Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
                 // Calculate the movement
-                Vector3 horizontalMove = Vector3.zero;
-                Vector3 projectedMove = Vector3.zero;
-                if (Math.Abs(groundNormal.y) < 0.01f){
-                    projectedMove = new Vector3(0, -_inputVector.x, _inputVector.y).normalized;
-                }else{
-                    horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
-                    projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
-                }
-                var move = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
                 if(move != Vector3.zero)
                     _controller.Move(move);
             
@@ -97,12 +90,26 @@ namespace Player.ControlModules
             
         }
 
+        private Vector3 GetMovement(Vector3 groundNormal)
+        {
+            Vector3 horizontalMove = Vector3.zero;
+            Vector3 projectedMove = Vector3.zero;
+            if (Math.Abs(groundNormal.y) < 0.01f){
+                projectedMove = new Vector3(0, -_inputVector.x, _inputVector.y).normalized;
+            }else{
+                horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
+                projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
+            }
+            var move = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+            return move;
+        }
+
         private void ApplyRotation()
         {
             PhysicsModule physicsModule = Player.Instance.PhysicsModule;
             if (physicsModule && physicsModule.IsRotating)
             {
-                Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
+                //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
 
                 transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
                 if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
