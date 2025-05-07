@@ -75,9 +75,25 @@ namespace Player.ControlModules
                 //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
+                
                 // Calculate the movement
                 if(move != Vector3.zero)
                     _controller.Move(move);
+                Vector3 projectedMove;
+                if (Math.Abs(groundNormal.y) < 0.01f) // Climbing branch
+                {
+                    projectedMove = GetClimbingMove(_inputVector, groundNormal);
+
+                }else
+                {
+                    // Plane and slope branch
+                    var horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
+                    projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
+                }
+                
+                var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+                if(moveDirection != Vector3.zero)
+                    _controller.Move(moveDirection);
             
                 // Apply the Gravity
                 //_controller.Move(-groundNormal * 
@@ -88,6 +104,61 @@ namespace Player.ControlModules
                 ApplyGravity();
             }
             
+        }
+        
+        /// <summary>
+        /// Given the input from PlayerInputManager and the normal from PhysicsModule, calculate the best projected 
+        /// movement between all the sheaf of planes.
+        /// </summary>
+        /// <param name="input"> Player input</param>
+        /// <param name="normal"> Ground normal of the surface</param>
+        /// <returns>Projected movement</returns>
+        private Vector3 GetClimbingMove(Vector2 input, Vector3 normal)
+        {
+            var normalXZ = new Vector3(normal.x, 0f, normal.z).normalized;
+
+            // Octants
+            Vector3[] directions = new Vector3[]
+            {                                                        // normal direction
+                new Vector3( 1, 0,  0),                              // →
+                new Vector3( 1, 0,  1).normalized,                   // ↗
+                new Vector3( 0, 0,  1),                              // ↑
+                new Vector3(-1, 0,  1).normalized,                   // ↖
+                new Vector3(-1, 0,  0),                              // ←
+                new Vector3(-1, 0, -1).normalized,                   // ↙
+                new Vector3( 0, 0, -1),                              // ↓
+                new Vector3( 1, 0, -1).normalized                    // ↘
+            };
+
+            // Transformation for every octants
+            Vector3[] inputMap = new Vector3[]
+            {
+                new Vector3(0, -input.x, input.y),     // → ok
+                new Vector3(-input.y, -input.x, 0),    // ↗ ok
+                new Vector3(input.x, -input.y, 0),     // ↑ ok
+                new Vector3(input.x, -input.y, 0),     // ↖ ok
+                new Vector3(0, input.x, input.y),      // ← ok
+                new Vector3(-input.y, input.x, 0),     // ↙ ok
+                new Vector3(input.x, input.y, 0),      // ↓ ok
+                new Vector3(input.x, input.y, 0),      // ↘ ok
+            };
+
+            var bestDot = -1f;
+            var bestIndex = 0;
+
+            // Calculate nearest octants 
+            for (var i = 0; i < directions.Length; i++)
+            {
+                var dot = Vector3.Dot(normalXZ, directions[i]);
+                if (dot > bestDot)
+                {
+                    bestDot = dot;
+                    bestIndex = i;
+                }
+            }
+
+            var move = inputMap[bestIndex];
+            return Vector3.ProjectOnPlane(move.normalized, normal);
         }
 
         private Vector3 GetMovement(Vector3 groundNormal)
@@ -103,7 +174,6 @@ namespace Player.ControlModules
             var move = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
             return move;
         }
-
         private void ApplyRotation()
         {
             PhysicsModule physicsModule = Player.Instance.PhysicsModule;
@@ -115,7 +185,6 @@ namespace Player.ControlModules
                 if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
                     physicsModule.OnRotatingEnd();
             }
-
         }
 
         public void ApplyFall()

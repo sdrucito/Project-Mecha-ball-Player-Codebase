@@ -32,7 +32,7 @@ namespace Player
     
         private Queue<string> _collisionTags = new Queue<string>();
         private float _collisionAngle;
-        private Vector3 _groundNormal;
+        private Vector3 _groundNormal = Vector3.up;
 
         private bool _isRotating = false; 
         public bool IsRotating
