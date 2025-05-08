@@ -8,11 +8,10 @@ public class RaycastManager : MonoBehaviour
 
     [SerializeField] private float stepLength = 2.0f;
     [SerializeField] private float jumpHeight = 2f;
-    [SerializeField] private string terrainLayer;
     [SerializeField] private float stepAnticipationMultiplier = 25f;
-    
+    [SerializeField] private string terrainLayer;
+
     private Rigidbody _rigidbody;
-    private CharacterController _characterController;
     private readonly List<RaycastHit> _hitList = new List<RaycastHit>();
     private List<LegAnimator> _legs = new List<LegAnimator>();
     
@@ -21,7 +20,6 @@ public class RaycastManager : MonoBehaviour
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
-        _characterController = GetComponent<CharacterController>();
     }
 
     private void Start()
@@ -29,57 +27,59 @@ public class RaycastManager : MonoBehaviour
         _lastRootPos = _rigidbody.position;
     }
 
+    /*
+     * Computes, when active, the movement captured between the last FixedUpdate
+     * It is used by all components that need to know the instantaneous velocity
+     */
     void FixedUpdate()
     {
         _movementDelta = _rigidbody.position - _lastRootPos;
         _lastRootPos = _rigidbody.position;
     }
 
-    public void SetLegs(List<LegAnimator> legs)
-    {
-        _legs = legs;
-    }
-
-    public Vector3 GetMovementDelta()
-    {
-        return _movementDelta;
-    }
-
-    public List<RaycastHit> GetHitList()
-    {
-        return _hitList;
-    }
-    public void FlushRaycasts()
-    {
-        _hitList.Clear();
-    }
-
     /*
      * Function that verifies if the player can move basing on the anticipation for leg
+     * It calculates, for a leg, the next position in the step and triggers the step movement
      */
     public void ExecuteStepForLeg(LegAnimator leg)
     {
 
-        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
         //Vector3 relativePos = pivot + horizontalOffset + anticipation;
         //relativePos.y = _rigidbody.position.y;
 
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+        RaycastHit? hit = ExecuteGroundedForLeg(leg);
+        if (hit.HasValue)
         {
             // Verify if the hit distance is greater than the step length
-            if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
+            if (Vector3.Distance(leg.NewPosition, hit.Value.point) > stepLength && leg.Lerp >= 1f)
             {
                 leg.Lerp = 0;
                 leg.OldPosition  = leg.NewPosition;
-                leg.NewPosition = hit.point;
+                leg.NewPosition = hit.Value.point;
             }
-            _hitList.Add(hit);
-            
         }
-        
+            
+           
+    }
+
+    public RaycastHit? ExecuteGroundedForLeg(LegAnimator leg)
+    {
+        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+        {
+            _hitList.Add(hit);
+        }
+
+        return hit;
+
     }
     
+    /*
+     * Function that calculates the Idle position for a leg (using raycasts) and triggers
+     * the repositioning
+     */
     public void ExecuteReturnToIdle(LegAnimator leg)
     {
         Transform reference = _rigidbody.transform;
@@ -111,13 +111,38 @@ public class RaycastManager : MonoBehaviour
         
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 anticipation = new Vector3(_movementDelta.x, 0f, _movementDelta.z) * stepAnticipationMultiplier;
+        Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
         Vector3 worldOrigin = _rigidbody.transform.position 
                               + fullOffset 
                               + anticipation;
+        Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
         return worldOrigin;
     }
- 
+    
+    /*
+     * Clears the last FixedUpdate frame hit list, preparing the logic
+     * to the next raycast
+     */
+    public void FlushRaycasts()
+    {
+        _hitList.Clear();
+    }
+    
+    
+    public Vector3 GetMovementDelta()
+    {
+        return _movementDelta;
+    }
+
+    public List<RaycastHit> GetHitList()
+    {
+        return _hitList;
+    }
+   
+    public void SetLegs(List<LegAnimator> legs)
+    {
+        _legs = legs;
+    }
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;

@@ -67,36 +67,27 @@ namespace Player.ControlModules
         #region Movement Logic
         private void ExecuteMovement()
         {
-            var groundNormal = Player.Instance.GetGroundNormal();
-            var move = GetMovement(groundNormal);
-            if (Player.Instance.CanMove(move))
+            Vector3 groundNormal = Player.Instance.GetGroundNormal();
+            Vector3 projectedMove = ProjectedMove(groundNormal);
+
+            if (Player.Instance.CanMove(projectedMove))
             {
                 // Rotate the player according to normal
                 //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
-                
+               
+                /*
                 // Calculate the movement
                 if(move != Vector3.zero)
                     _controller.Move(move);
-                Vector3 projectedMove;
-                if (Math.Abs(groundNormal.y) < 0.01f) // Climbing branch
-                {
-                    projectedMove = GetClimbingMove(_inputVector, groundNormal);
-
-                }else
-                {
-                    // Plane and slope branch
-                    var horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
-                    projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
-                }
+                */
                 
                 var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
                 if(moveDirection != Vector3.zero)
                     _controller.Move(moveDirection);
             
                 // Apply the Gravity
-                //_controller.Move(-groundNormal * 
                 ApplyTouchGrounded();
             }
             else
@@ -105,7 +96,24 @@ namespace Player.ControlModules
             }
             
         }
-        
+
+        private Vector3 ProjectedMove(Vector3 groundNormal)
+        {
+            Vector3 projectedMove;
+            if (Math.Abs(groundNormal.y) < 0.01f) // Climbing branch
+            {
+                projectedMove = GetClimbingMove(_inputVector, groundNormal);
+
+            }else
+            {
+                // Plane and slope branch
+                var horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
+                projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
+            }
+
+            return projectedMove;
+        }
+
         /// <summary>
         /// Given the input from PlayerInputManager and the normal from PhysicsModule, calculate the best projected 
         /// movement between all the sheaf of planes.
@@ -186,11 +194,7 @@ namespace Player.ControlModules
                     physicsModule.OnRotatingEnd();
             }
         }
-
-        public void ApplyFall()
-        {
-            
-        }
+        
 
         private void ApplyTouchGrounded()
         {

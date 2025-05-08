@@ -82,7 +82,7 @@ namespace Player.Animation
 
                 Vector3 torque = axis * (kp * angleRad + ki * _integralError) - (kd * omegaAlong);
 
-                rb.AddTorque(torque, ForceMode.VelocityChange);
+                rb.AddTorque(torque, ForceMode.Force);
                 rb.AddForce(-rb.linearVelocity.normalized*speedDownForce, ForceMode.VelocityChange);
                 yield return new WaitForFixedUpdate();
             }

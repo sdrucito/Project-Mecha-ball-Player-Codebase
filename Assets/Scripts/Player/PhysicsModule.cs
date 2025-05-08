@@ -293,14 +293,14 @@ namespace Player
         {
             
             Rigidbody rb= Player.Instance.Rigidbody;
-            Vector3 worldTo = new Vector3(point.x - rb.position.x, point.y - rb.position.y, point.z - rb.position.z);
             Vector3 toPointLocal = rb.transform.InverseTransformPoint(point);
-            toPointLocal.y = 0;
-            Quaternion invRot = Quaternion.Inverse(transform.rotation);
-            Vector3 toLocal = invRot * worldTo;
+            toPointLocal.y = 0f;
 
-            Debug.DrawLine(rb.position, rb.position + toPointLocal * 5.0f, Color.magenta);
-            return Vector3.Dot(toPointLocal.normalized, velocity.normalized);
+            Vector3 velLocal = rb.transform.InverseTransformDirection(velocity);
+            velLocal.y = 0f;
+
+            // 4) dot in local XZ
+            return Vector3.Dot(toPointLocal.normalized, velLocal.normalized);
         }
     }
 }
