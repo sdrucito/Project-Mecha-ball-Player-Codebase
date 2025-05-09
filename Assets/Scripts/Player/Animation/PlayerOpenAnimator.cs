@@ -32,7 +32,7 @@ namespace Player.Animation
         float _integralError;
         
         [Tooltip("How many degrees of error counts as “aligned”.")]
-        public float   alignmentTolerance = 0.5f;
+        public float alignmentTolerance = 0.5f;
         private Action _onAligned;
         
         private void Start()
@@ -69,11 +69,11 @@ namespace Player.Animation
             while (true)
             {
                 Vector3 currentUp = transform.up;
-                float   angleDeg  = Vector3.Angle(currentUp, groundNormal);
+                float angleDeg = Vector3.Angle(currentUp, groundNormal);
                 if (angleDeg <= alignmentTolerance) break;
 
-                Vector3 axis     = Vector3.Cross(currentUp, groundNormal).normalized;
-                float   angleRad = angleDeg * Mathf.Deg2Rad;
+                Vector3 axis = Vector3.Cross(currentUp, groundNormal).normalized;
+                float angleRad = angleDeg * Mathf.Deg2Rad;
 
                 _integralError += angleRad * Time.fixedDeltaTime;
                 _integralError = Mathf.Clamp(_integralError, -maxIntegral, maxIntegral);

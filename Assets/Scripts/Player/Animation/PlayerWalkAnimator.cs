@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -71,6 +72,7 @@ namespace Player.Animation
             GroupA,
             GroupB,
             Floating,
+            Opening,
         };
     
         private readonly List<LegAnimator> _groupALegs = new List<LegAnimator>();
@@ -78,9 +80,9 @@ namespace Player.Animation
     
         private StepGroup _currentGroup = StepGroup.Idle;
         private bool _wasMoving = false;
-        private bool _isOpening = false;
         private Vector3 _lastPosition;
 
+        public Action OnOpenFinished;
         void Start()
         {
 
@@ -136,17 +138,68 @@ namespace Player.Animation
             ReturnLegToIdle();
             MoveLegs(StepGroup.Idle); 
         }
+/*
+        void FixedUpdate()
+        {
+            bool isMoving   = VerifyMove();
+            bool isGrounded = Player.Instance.IsGrounded();
+            Debug.Log("IsGrounded: " + isGrounded);
+
+            // 1) Opening / floating / idle all just snap home
+            if (_currentGroup == StepGroup.Opening || !isGrounded || (!isMoving && _currentGroup != StepGroup.Idle))
+            {
+                if (_currentGroup != StepGroup.Idle)
+                    ReturnLegToIdle();
+                _currentGroup = StepGroup.Idle;
+                MoveLegs(StepGroup.Idle);
+                _wasMoving = false;
+                return;
+            }
+
+            // 1b) Don’t start your very first step until we’ve done at least one grounded pass
+            if (_justFinishedOpening)
+            {
+                // run your raycasts so every leg.NewPosition is set
+                VerifyGroundedForGroup(StepGroup.GroupA);
+                VerifyGroundedForGroup(StepGroup.GroupB);
+                _justFinishedOpening = false;
+                return;
+            }
+
+            // 2) Normal walking
+            if (isMoving && !_wasMoving)
+            {
+                _currentGroup = StepGroup.GroupA;
+                StartStepForGroup(_currentGroup);
+            }
+            else if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(_currentGroup))
+            {
+                _currentGroup = StepGroup.GroupB;
+                StartStepForGroup(_currentGroup);
+            }
+            else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(_currentGroup))
+            {
+                _currentGroup = StepGroup.GroupA;
+                StartStepForGroup(_currentGroup);
+            }
+
+            MoveLegs(_currentGroup);
+            _wasMoving = isMoving;
+        }
+        */
 
         void FixedUpdate()
         {
 
-            if (!_isOpening)
+            if (_currentGroup != StepGroup.Opening)
             {
-                Debug.Log("I'm moving with isOpening: " + _isOpening);
-
+                //Debug.Log("CurrentGroup: " + _currentGroup);
                 // Call the update for each leg and set the new IK position
                 bool isMoving = VerifyMove();
                 bool isGrounded = Player.Instance.IsGrounded();
+                Debug.Log("IsGrounded: " + isGrounded);
+                VerifyGroundedForGroup(StepGroup.GroupA);
+                VerifyGroundedForGroup(StepGroup.GroupB);
                 if (!isGrounded)
                 {
                     if (_currentGroup != StepGroup.Floating)
@@ -154,16 +207,15 @@ namespace Player.Animation
                         _currentGroup = StepGroup.Floating;
                         ReturnLegToIdle();
                     }
-                    MoveLegs(StepGroup.Floating);
-                }else if (IsStopped(isMoving))
+                }else
+                if (IsStopped(isMoving))
                 {
                     _currentGroup = StepGroup.Idle;
                     ReturnLegToIdle();
-                    MoveLegs(StepGroup.Idle); 
                 }else
                 {
                     // just started moving?
-                    if (isMoving && !_wasMoving && _currentGroup == StepGroup.Idle)
+                    if (IsStartedMoving(isMoving))
                     {
                         _currentGroup = StepGroup.GroupA;
                         StartStepForGroup(_currentGroup);
@@ -180,12 +232,11 @@ namespace Player.Animation
                         _currentGroup = StepGroup.GroupA;
                         StartStepForGroup(_currentGroup);
                     }
-        
-                    MoveLegs(_currentGroup);
                 }
-            
+                MoveLegs(_currentGroup);
+
                 _wasMoving = isMoving;
-            
+        
                 if (Player.Instance.RaycastManager)
                 {
                     Player.Instance.RaycastManager.SetLegs(_legs);
@@ -194,9 +245,13 @@ namespace Player.Animation
                 //Debug.Log("Current grounded: " + Player.Instance.IsGrounded());
             }
             
-        
         }
 
+        bool IsStartedMoving(bool isMoving)
+        {
+            return isMoving && !_wasMoving && (_currentGroup == StepGroup.Idle || _currentGroup == StepGroup.Floating ||
+                                               _currentGroup == StepGroup.Opening);
+        }
         bool IsStopped(bool newMoving)
         {
             return !newMoving && _currentGroup != (StepGroup.Idle) && IsMovementGroupFinished(StepGroup.GroupA) &&
@@ -241,10 +296,12 @@ namespace Player.Animation
                     BlockLegGroup(_groupALegs);
                     break;
                 case StepGroup.Floating:
+                    /*
                     MoveLegReturnToBody(_frontLeftFootAnim);
                     MoveLegReturnToBody(_frontRightFootAnim);
                     MoveLegReturnToBody(_rearLeftFootAnim);
                     MoveLegReturnToBody(_rearRightFootAnim);
+                    */
                     break;
             }
             MoveLegGroup(_groupALegs);
@@ -271,6 +328,8 @@ namespace Player.Animation
         }
         void MoveLegStep(LegAnimator legAnimator)
         {
+            if (legAnimator.NewPosition == Vector3.zero)
+                 legAnimator.NewPosition = legAnimator.OldPosition;
         
             if (legAnimator.Lerp < 1f)
             {
@@ -294,7 +353,6 @@ namespace Player.Animation
             }
             else
             {
-                Debug.Log("Snapping leg to the ground");
                 legAnimator.Transform.position = legAnimator.OldPosition;
                 //Debug.Log("OldPosition: " + legAnimator.OldPosition);
             }
@@ -322,8 +380,6 @@ namespace Player.Animation
         {
             if (Player.Instance.RaycastManager)
             {
-                Player.Instance.RaycastManager.FlushRaycasts();
-                
                 List<LegAnimator> legToMove = (group == StepGroup.GroupA) ? _groupALegs : _groupBLegs;
                 
                 for (int i = 0; i < legToMove.Count; i++)
@@ -337,7 +393,7 @@ namespace Player.Animation
         {
             if (Player.Instance.RaycastManager)
             {
-                //Player.Instance.RaycastManager.FlushRaycasts();
+                Player.Instance.RaycastManager.FlushRaycasts();
                 
                 List<LegAnimator> leg = (group == StepGroup.GroupA) ? _groupALegs : _groupBLegs;
                 
@@ -351,10 +407,11 @@ namespace Player.Animation
         private void OnEnable()
         {
             Player.Instance.RaycastManager.enabled = true;
-            _isOpening = true;
+            Player.Instance.RaycastManager.ResetMovementDelta();
+            _currentGroup = StepGroup.Opening;
             //ResetAllLegs();
             //InitializeLegs();
-            StartCoroutine(FadeInRig(0.5f));
+            StartCoroutine(FadeInRig(0.1f));
             //StartCoroutine(DelaySetWeight());
         }
 
@@ -372,11 +429,14 @@ namespace Player.Animation
             legRig.weight = 1.0f;
         }
         
+        private bool _justFinishedOpening = false;
+
         public IEnumerator FadeInRig(float duration)
         {
             float elapsed = 0f;
             legRig.weight = 0f;
-
+            // Snap to idle position
+            ResetAllLegs();
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
@@ -384,46 +444,85 @@ namespace Player.Animation
                 yield return null;
             }
             legRig.weight = 1f;
-            // Snap to idle position
-            ResetAllLegs(); 
-            
+             
+            // Re-Activate switch input
+            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+            _currentGroup = StepGroup.Idle;
+            _justFinishedOpening = true;
+            OnOpenFinished?.Invoke();
         }
 
         public void ResetAllLegs()
         {
-            // Reset Second Order Dynamics
-            secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
-            secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
-            secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
-            secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
+            
             //_currentGroup = StepGroup.Idle;
             ResetLegRelativePosition(_frontLeftFootAnim);
             ResetLegRelativePosition(_frontRightFootAnim);
             ResetLegRelativePosition(_rearLeftFootAnim);
             ResetLegRelativePosition(_rearRightFootAnim);
+            // Reset Second Order Dynamics
+            secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
+            secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
+            secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
+            secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
             _currentGroup = StepGroup.Idle;
             _wasMoving = false;
-
-            // Re-Activate switch input
-            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
-            _isOpening = false;
+            ReturnLegToIdle();
+            
+            
         }
-
+/*
         private void ResetLegRelativePosition(LegAnimator leg)
         {
             if (leg != null)
             {
-                Debug.Log("Resetting relative position");
+                //Debug.Log("Resetting relative position");
                 Rigidbody instanceRigidbody = Player.Instance.Rigidbody;
                 Vector3 worldOffset = instanceRigidbody.rotation * leg.RelativePosition;
                 Vector3 resetPos = instanceRigidbody.position + worldOffset;
-                resetPos.y -= stepHeight;
+                resetPos.y -= footHeight;
                 leg.Transform.position = resetPos;
                 leg.OldPosition = resetPos;
                 leg.NewPosition = resetPos;
                 leg.Lerp = 1.0f;
+                #if UNITY_EDITOR
+                var debugSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                debugSphere.transform.position = resetPos;
+                debugSphere.transform.localScale = Vector3.one * 0.1f;
+                Destroy(debugSphere.GetComponent<Collider>());  // optional, to avoid physics
+                Destroy(debugSphere, 0.5f);
+                #endif
             }
             
+        }
+        */
+        
+        private void ResetLegRelativePosition(LegAnimator leg)
+        {
+            if (leg == null) return;
+
+            // 1) extract the foot's stored local offset in XZ
+            Vector3 localOffset = leg.RelativePosition;
+            localOffset.y = 0f;
+
+            // 2) build a yaw-only quaternion from the body
+            float bodyYaw = Player.Instance.Rigidbody.rotation.eulerAngles.y;
+            Quaternion yawOnly = Quaternion.Euler(0f, bodyYaw, 0f);
+
+            // 3) rotate that horizontal offset by yaw, and drop to slope
+            Vector3 worldOffset = yawOnly * localOffset;
+            Vector3 resetPos   = Player.Instance.Rigidbody.position + worldOffset;
+
+            // 4) now raycast or just lower by footHeight
+            // TODO: AGGIUSTARE QUA PER LO SLOPE, PER ALCUNE GAMBE E' + PER ALTRE E' -
+            resetPos -= Player.Instance.GetGroundNormal() * footHeight;
+            // (Or if you have your own ground‐ray routine, call that here)
+
+            // 5) assign
+            leg.Transform.position = resetPos;
+            leg.OldPosition        = resetPos;
+            leg.NewPosition        = resetPos;
+            leg.Lerp               = 1f;
         }
 
     

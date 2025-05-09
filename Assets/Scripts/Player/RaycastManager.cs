@@ -10,7 +10,7 @@ public class RaycastManager : MonoBehaviour
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float stepAnticipationMultiplier = 25f;
     [SerializeField] private string terrainLayer;
-
+    [SerializeField] private float maxMovementMagnitude = 0.5f;
     private Rigidbody _rigidbody;
     private readonly List<RaycastHit> _hitList = new List<RaycastHit>();
     private List<LegAnimator> _legs = new List<LegAnimator>();
@@ -28,6 +28,15 @@ public class RaycastManager : MonoBehaviour
     }
 
     /*
+     * When enabled, reset the movement delta
+     */
+    public void ResetMovementDelta()
+    {
+        _movementDelta = Vector3.zero;
+        _lastRootPos = _rigidbody.position;
+    }
+
+    /*
      * Computes, when active, the movement captured between the last FixedUpdate
      * It is used by all components that need to know the instantaneous velocity
      */
@@ -35,6 +44,8 @@ public class RaycastManager : MonoBehaviour
     {
         _movementDelta = _rigidbody.position - _lastRootPos;
         _lastRootPos = _rigidbody.position;
+        // Clamp movement delta to avoid strange behaviors
+        _movementDelta = Vector3.ClampMagnitude(_movementDelta, maxMovementMagnitude);
     }
 
     /*
@@ -46,16 +57,17 @@ public class RaycastManager : MonoBehaviour
 
         //Vector3 relativePos = pivot + horizontalOffset + anticipation;
         //relativePos.y = _rigidbody.position.y;
-
-        RaycastHit? hit = ExecuteGroundedForLeg(leg);
-        if (hit.HasValue)
+        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             // Verify if the hit distance is greater than the step length
-            if (Vector3.Distance(leg.NewPosition, hit.Value.point) > stepLength && leg.Lerp >= 1f)
+            if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
             {
                 leg.Lerp = 0;
                 leg.OldPosition  = leg.NewPosition;
-                leg.NewPosition = hit.Value.point;
+                leg.NewPosition = hit.point;
             }
         }
             
@@ -99,7 +111,6 @@ public class RaycastManager : MonoBehaviour
                 leg.OldPosition  = leg.NewPosition;
                 leg.NewPosition = hit.point;
             }
-            _hitList.Add(hit);
         }
     }
     
@@ -112,6 +123,8 @@ public class RaycastManager : MonoBehaviour
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
         Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
+        Debug.Log("Movement delta: " + _movementDelta);
+        anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
         Vector3 worldOrigin = _rigidbody.transform.position 
                               + fullOffset 
                               + anticipation;

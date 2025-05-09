@@ -43,7 +43,6 @@ namespace Player
 
         private void FixedUpdate()
         {
-            SetWalkGrounded();
             //Debug.Log("GroundNormal: " + _groundNormal);
         }
 
@@ -186,6 +185,7 @@ namespace Player
 
         public bool IsGrounded()
         {
+            SetWalkGrounded();
             return _isGrounded;
         }
 

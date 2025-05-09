@@ -30,6 +30,7 @@ namespace Player.ControlModules
         private void Start()
         {
             _controller = Player.Instance.CharacterController;
+            playerWalkAnimator.OnOpenFinished += OpenFinished;
         }
 
         private void OnEnable()
@@ -37,8 +38,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
-                if(_controller)
-                    _controller.enabled = true;
+                OpenFinished();
                 playerWalkAnimator.enabled = true;
             }
         }
@@ -53,6 +53,12 @@ namespace Player.ControlModules
 
             }
 
+        }
+
+        private void OpenFinished()
+        {
+            if(_controller)
+                _controller.enabled = true;
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;
@@ -73,7 +79,7 @@ namespace Player.ControlModules
             if (Player.Instance.CanMove(projectedMove))
             {
                 // Rotate the player according to normal
-                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+                Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
                
