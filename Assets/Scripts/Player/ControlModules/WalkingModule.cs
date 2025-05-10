@@ -79,7 +79,7 @@ namespace Player.ControlModules
             if (Player.Instance.CanMove(projectedMove))
             {
                 // Rotate the player according to normal
-                Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
                

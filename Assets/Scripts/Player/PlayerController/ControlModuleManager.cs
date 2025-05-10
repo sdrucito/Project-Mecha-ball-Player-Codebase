@@ -20,9 +20,9 @@ namespace Player.PlayerController
             return _modules[_actualModule].name;
         }
 
-        public ControlModule GetModule(string name)
+        public ControlModule GetModule(string moduleName)
         {
-            return _modules.Find(module => module.name == name);
+            return _modules.Find(module => module.name == moduleName);
         }
         private void Awake()
         {
@@ -97,7 +97,6 @@ namespace Player.PlayerController
     
         private void DeactivateAllModules()
         {
-            int i = 0;
             foreach (ControlModule module in _modules)
                 module.enabled = false;
         }

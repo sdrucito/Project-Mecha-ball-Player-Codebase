@@ -17,7 +17,6 @@ namespace Player.Animation
         
         [SerializeField] private Vector2 searchExtents = new Vector2(5f, 5f);
         [SerializeField] private Vector2 spotDimensions = new Vector2(2f, 2f);
-        [SerializeField] private float samplingStep = 1f;
         [SerializeField] private LayerMask groundLayerMask;
         
         [Tooltip("Proportional gain on the orientation error (Nm per degree).")]

@@ -114,6 +114,26 @@ public class RaycastManager : MonoBehaviour
         }
     }
     
+    
+    public void ExecuteResetPosition(LegAnimator leg)
+    {
+        Transform reference = _rigidbody.transform;
+        
+        Quaternion bodyRot = reference.rotation;
+        Vector3 fullOffset = bodyRot * leg.RelativePosition;
+        Vector3 worldOrigin = _rigidbody.transform.position 
+                              + fullOffset;
+        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
+        if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+        {
+            leg.Transform.position = hit.point;
+            leg.OldPosition = hit.point;
+            leg.NewPosition = hit.point;
+            leg.Lerp = 1f;
+        }
+    }
 
     private Vector3 ComputeLegPositionForStep(LegAnimator leg)
     {
@@ -123,12 +143,11 @@ public class RaycastManager : MonoBehaviour
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
         Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
-        Debug.Log("Movement delta: " + _movementDelta);
         anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
         Vector3 worldOrigin = _rigidbody.transform.position 
                               + fullOffset 
                               + anticipation;
-        Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
+        //Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
         return worldOrigin;
     }
     

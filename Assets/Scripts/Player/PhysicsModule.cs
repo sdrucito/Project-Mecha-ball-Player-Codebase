@@ -152,7 +152,6 @@ namespace Player
             switch (hitData.Tag)
             {
                 case "Ground":
-                    //_collisionAngle = GetCollisionAngle(hitData);
                     _groundNormal = GetCollisionNormal(hitData);
                     break;
             }
