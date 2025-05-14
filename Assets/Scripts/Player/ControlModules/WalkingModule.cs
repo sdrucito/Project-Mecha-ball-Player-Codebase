@@ -12,15 +12,16 @@ namespace Player.ControlModules
     {
         [SerializeField] private float WalkingSpeed = 5f;
         [SerializeField] private float Gravity = -9.8f;
+        [SerializeField] private float rotationSpeed = 120f;
+
         private float _verticalVelocity=0;
 
         private CharacterController _controller;
         private Vector2 _inputVector = Vector2.zero;
     
-        [SerializeField] private PlayerWalkAnimator playerWalkAnimator;
+        [SerializeField] private PlayerKneeWalkAnimator playerWalkAnimator;
         
         private Quaternion _targetRotation = Quaternion.identity;
-        [SerializeField] private const float rotationSpeed = 90f;
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Awake()
         {
@@ -40,6 +41,7 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
                 OpenFinished();
                 playerWalkAnimator.enabled = true;
+                PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
             }
         }
 
@@ -75,14 +77,13 @@ namespace Player.ControlModules
         {
             Vector3 groundNormal = Player.Instance.GetGroundNormal();
             Vector3 projectedMove = ProjectedMove(groundNormal);
-
             if (Player.Instance.CanMove(projectedMove))
             {
                 // Rotate the player according to normal
-                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
-               
+                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+
                 /*
                 // Calculate the movement
                 if(move != Vector3.zero)
@@ -93,10 +94,11 @@ namespace Player.ControlModules
                 if(moveDirection != Vector3.zero)
                     _controller.Move(moveDirection);
             
-                // Apply the Gravity
-                ApplyTouchGrounded();
+                
             }
-            else
+            ApplyTouchGrounded();
+
+            if (!Player.Instance.IsGrounded())
             {
                 ApplyGravity();
             }

@@ -13,8 +13,9 @@ namespace Player.PlayerController
     {
     
         private int _actualModule = 0; // Index of the active module
+        private int _previousModule = 0; // Index of the previous module for rollback during switches
         private List<ControlModule> _modules = new List<ControlModule>();  // List of all available control modules
-        
+        public bool IsSwitching { get; private set; }
         public string GetActiveModuleName()
         {
             return _modules[_actualModule].name;
@@ -28,6 +29,7 @@ namespace Player.PlayerController
         {
             GetAvailableControlModules();
             _actualModule = 0;
+            _previousModule = 0;
         }
 
         private void Start()
@@ -60,6 +62,7 @@ namespace Player.PlayerController
                 PlayerInputManager.Instance.SetActionEnabled("ChangeMode", false);
                 _actualModule = GetNextModule();
                 DeactivateAllModules();
+                IsSwitching = true;
                 _modules[_actualModule].OnActivated?.Invoke();
                 
             }
@@ -68,9 +71,15 @@ namespace Player.PlayerController
         public void ActivateNextModule()
         {
             ActivateModule();
-
         }
 
+        public void RollbackSwitch()
+        {
+            _actualModule = _previousModule;
+            DeactivateAllModules();
+            IsSwitching = true;
+            _modules[_actualModule].OnActivated?.Invoke();
+        }
         public void ActivateKinematic()
         {
             Player.Instance.Rigidbody.isKinematic = true;
@@ -92,6 +101,8 @@ namespace Player.PlayerController
         private void ActivateModule()
         {
             _modules[_actualModule].enabled = true;
+            IsSwitching = false;
+            _previousModule = _actualModule;
             //Debug.Log("Enabled Module: " + GetActiveModuleName());
         }
     

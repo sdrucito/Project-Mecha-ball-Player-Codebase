@@ -9,41 +9,18 @@ using UnityEngine.Serialization;
 
 namespace Player.Animation
 {
-    [System.Serializable]
-    public class LegAnimator
-    {
-    
-        public Transform Transform;
-        public float Lerp;
-        public Vector3 NewPosition;
-        public Vector3 OldPosition;
-        public SecondOrderDynamics SecondOrderDynamics;
-        public Vector3 RelativePosition;
-        public string Name;
 
-        public LegAnimator(Transform transform, float lerp, Vector3 newPosition, Vector3 oldPosition, SecondOrderDynamics secondOrderDynamics, Vector3 relativePosition, string name)
-        {
-            Transform = transform;
-            Lerp = lerp;
-            NewPosition = newPosition;
-            OldPosition = oldPosition;
-            SecondOrderDynamics = secondOrderDynamics;
-            RelativePosition = relativePosition;
-            Name = name;
-        }
-
-    }
 
 /*
  * Component that manages the procedural animation for the player movement
  */
-    public class PlayerWalkAnimator : MonoBehaviour
+    public class PlayerKneeWalkAnimator : MonoBehaviour
     {
 
         [SerializeField, Range(0,3)] private float f;
         [SerializeField, Range(0,3)] private float z;
         [SerializeField, Range(0,3)] private float r;
-
+        [SerializeField] private AnimationCurve legAnimationCurve;
         [SerializeField] private Transform center;
         // Reference to IK position for each leg
         [SerializeField] private Transform frontLeftFoot;
@@ -97,16 +74,12 @@ namespace Player.Animation
             secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
 
             Vector3 relativePos = frontLeftFoot.position - center.position;
-            relativePos.y += footHeight;
             _frontLeftFootAnim = new LegAnimator(frontLeftFoot, 1f, frontLeftFoot.position, frontLeftFoot.position, secondOrderDynamicsFlF, relativePos, "fl");
             relativePos = frontRightFoot.position - Player.Instance.Rigidbody.position;
-            relativePos.y += footHeight;
             _frontRightFootAnim = new LegAnimator(frontRightFoot, 1f, frontRightFoot.position, frontRightFoot.position, secondOrderDynamicsFrF, relativePos, "fr");
             relativePos = rearLeftFoot.position - Player.Instance.Rigidbody.position;
-            relativePos.y += footHeight;
             _rearLeftFootAnim = new LegAnimator(rearLeftFoot, 1f, rearLeftFoot.position, rearLeftFoot.position, secondOrderDynamicsRlF, relativePos, "rl");
             relativePos = rearRightFoot.position - Player.Instance.Rigidbody.position;
-            relativePos.y += footHeight;
             _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamicsRrF, relativePos, "rr");
         
             _legs.Add(_frontLeftFootAnim);
@@ -142,6 +115,55 @@ namespace Player.Animation
             ReturnLegToIdle();
             MoveLegs(StepGroup.Idle); 
         }
+/*
+        void FixedUpdate()
+        {
+            bool isMoving   = VerifyMove();
+            bool isGrounded = Player.Instance.IsGrounded();
+            Debug.Log("IsGrounded: " + isGrounded);
+
+            // 1) Opening / floating / idle all just snap home
+            if (_currentGroup == StepGroup.Opening || !isGrounded || (!isMoving && _currentGroup != StepGroup.Idle))
+            {
+                if (_currentGroup != StepGroup.Idle)
+                    ReturnLegToIdle();
+                _currentGroup = StepGroup.Idle;
+                MoveLegs(StepGroup.Idle);
+                _wasMoving = false;
+                return;
+            }
+
+            // 1b) Don’t start your very first step until we’ve done at least one grounded pass
+            if (_justFinishedOpening)
+            {
+                // run your raycasts so every leg.NewPosition is set
+                VerifyGroundedForGroup(StepGroup.GroupA);
+                VerifyGroundedForGroup(StepGroup.GroupB);
+                _justFinishedOpening = false;
+                return;
+            }
+
+            // 2) Normal walking
+            if (isMoving && !_wasMoving)
+            {
+                _currentGroup = StepGroup.GroupA;
+                StartStepForGroup(_currentGroup);
+            }
+            else if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(_currentGroup))
+            {
+                _currentGroup = StepGroup.GroupB;
+                StartStepForGroup(_currentGroup);
+            }
+            else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(_currentGroup))
+            {
+                _currentGroup = StepGroup.GroupA;
+                StartStepForGroup(_currentGroup);
+            }
+
+            MoveLegs(_currentGroup);
+            _wasMoving = isMoving;
+        }
+        */
 
         void FixedUpdate()
         {
@@ -149,12 +171,10 @@ namespace Player.Animation
             {
                 //Debug.Log("CurrentGroup: " + _currentGroup);
                 // Call the update for each leg and set the new IK position
-                VerifyGroundedForGroup(StepGroup.GroupA);
-                VerifyGroundedForGroup(StepGroup.GroupB);
+                ExecuteGrounded();
+
                 bool isMoving = VerifyMove();
                 bool isGrounded = Player.Instance.IsGrounded();
-                //Debug.Log("IsGrounded " + isGrounded);
-                
                 
                 if (!isGrounded)
                 {
@@ -195,9 +215,18 @@ namespace Player.Animation
                 }
                 //Debug.Log("Current group: " + _currentGroup);
                 //Debug.Log("Current grounded: " + Player.Instance.IsGrounded());
+
             }
             
         }
+
+        private void ExecuteGrounded()
+        {
+            Player.Instance.RaycastManager.FlushRaycasts();
+            VerifyGroundedForGroup(StepGroup.GroupA);
+            VerifyGroundedForGroup(StepGroup.GroupB);
+        }
+
 
         bool IsStartedMoving(bool isMoving)
         {
@@ -284,15 +313,16 @@ namespace Player.Animation
             if (legAnimator.Lerp < 1f)
             {
                 legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.deltaTime * stepSpeed, 1f);
-                float t = Mathf.SmoothStep(0f, 1f, legAnimator.Lerp);
-
+                // remap into an animation curve
+                float t = legAnimationCurve.Evaluate(legAnimator.Lerp);
+                //float t = Mathf.SmoothStep(0f, 1f, legAnimator.Lerp);
                 float verticalOffset = 0f;
                 verticalOffset = Mathf.Sin(t * Mathf.PI) * stepHeight;
         
                 //Vector3 planarPos = GetLegPlanarPosition(legAnimator);
 
                 Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.deltaTime, legAnimator.NewPosition);
-                Vector3 localVertical = transform.parent.transform.up * verticalOffset;
+                Vector3 localVertical = transform.parent.transform.up * verticalOffset + transform.parent.transform.up * footHeight;
                 Vector3 finalPos = new Vector3(planarPos.x, planarPos.y, planarPos.z) + localVertical;
                 legAnimator.Transform.position = finalPos;
 
@@ -300,16 +330,19 @@ namespace Player.Animation
                 {
                     legAnimator.OldPosition = legAnimator.NewPosition;
                 }
-                //Debug.Log("NewPosition: " + legAnimator.NewPosition);
 
             }
             else
             {
-                legAnimator.Transform.position = legAnimator.OldPosition;
-                //Debug.Log("OldPosition: " + legAnimator.OldPosition);
+                legAnimator.Transform.position = legAnimator.OldPosition + GetFootHeight();
             }
 
         
+        }
+
+        private Vector3 GetFootHeight()
+        {
+            return transform.parent.transform.up * footHeight;
         }
 
         private Vector3 GetLegPlanarPosition(LegAnimator legAnimator)
@@ -348,7 +381,10 @@ namespace Player.Animation
                 
                 for (int i = 0; i < legToMove.Count; i++)
                 {
-                    Player.Instance.RaycastManager.ExecuteStepForLeg(legToMove[i]);
+                    if (!Player.Instance.RaycastManager.ExecuteStepForLeg(legToMove[i]))
+                    {
+                        MoveLegReturnToBody(legToMove[i]);
+                    };
                 }
             }
         }
@@ -357,8 +393,6 @@ namespace Player.Animation
         {
             if (Player.Instance.RaycastManager)
             {
-                Player.Instance.RaycastManager.FlushRaycasts();
-                
                 List<LegAnimator> leg = (group == StepGroup.GroupA) ? _groupALegs : _groupBLegs;
                 
                 for (int i = 0; i < leg.Count; i++)
@@ -370,14 +404,14 @@ namespace Player.Animation
 
         private void OnEnable()
         {
-            if (Player.Instance)
-            {
-                Player.Instance.RaycastManager.enabled = true;
-                Player.Instance.RaycastManager.ResetMovementDelta();
-            }
+            Debug.Log("Enabling Walk Animator");
+            Player.Instance.RaycastManager.enabled = true;
+            Player.Instance.RaycastManager.ResetMovementDelta();
             _currentGroup = StepGroup.Opening;
             //ResetAllLegs();
             //InitializeLegs();
+            // Call the raycast to update normals
+            ExecuteGrounded();
             StartCoroutine(FadeInRig(0.1f));
             //StartCoroutine(DelaySetWeight());
         }
@@ -403,6 +437,7 @@ namespace Player.Animation
             legRig.weight = 0f;
             // Snap to idle position
             ResetAllLegs();
+          
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
@@ -412,33 +447,30 @@ namespace Player.Animation
             legRig.weight = 1f;
              
             // Re-Activate switch input
-            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
             _currentGroup = StepGroup.Idle;
+            
             OnOpenFinished?.Invoke();
         }
 
         public void ResetAllLegs()
         {
-            if (Player.Instance)
-            {
-                RaycastManager raycaster = Player.Instance.RaycastManager;
-                if (raycaster && IsInitialized())
-                {
-                    raycaster.ExecuteResetPosition(_frontLeftFootAnim);
-                    raycaster.ExecuteResetPosition(_frontRightFootAnim);
-                    raycaster.ExecuteResetPosition(_rearLeftFootAnim);
-                    raycaster.ExecuteResetPosition(_rearRightFootAnim);
-                    // Reset Second Order Dynamics
-                    secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
-                    secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
-                    secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
-                    secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
-                    _currentGroup = StepGroup.Idle;
-                    _wasMoving = false;
-                    ReturnLegToIdle();
-                }
-            }
             
+            RaycastManager raycaster = Player.Instance.RaycastManager;
+            if (raycaster && IsInitialized())
+            {
+                raycaster.ExecuteResetPosition(_frontLeftFootAnim);
+                raycaster.ExecuteResetPosition(_frontRightFootAnim);
+                raycaster.ExecuteResetPosition(_rearLeftFootAnim);
+                raycaster.ExecuteResetPosition(_rearRightFootAnim);
+                // Reset Second Order Dynamics
+                secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
+                secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
+                secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
+                secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
+                _currentGroup = StepGroup.Idle;
+                _wasMoving = false;
+                ReturnLegToIdle();
+            }
             
             
             

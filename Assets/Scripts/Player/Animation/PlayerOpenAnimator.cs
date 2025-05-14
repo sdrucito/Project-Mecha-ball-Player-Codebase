@@ -50,7 +50,7 @@ namespace Player.Animation
         {
             Vector3 projFwd = Vector3.ProjectOnPlane(transform.forward, Player.Instance.PhysicsModule.GetGroundNormal()).normalized;
             Quaternion targetRot = Quaternion.LookRotation(projFwd, Player.Instance.PhysicsModule.GetGroundNormal());
-            StartCoroutine(AlignToNormalRoutine(Player.Instance.PhysicsModule.GetGroundNormal(), _onAligned));
+            StartCoroutine(AlignToNormalRoutine(_onAligned));
             //StartCoroutine(AlignFast(targetRot, 2.0f));
         }
 
@@ -61,13 +61,32 @@ namespace Player.Animation
         }
  
         // PID Controller function
-        public IEnumerator AlignToNormalRoutine(Vector3 groundNormal, Action onAligned)
+        public IEnumerator AlignToNormalRoutine(Action onAligned)
         {
             Rigidbody rb = Player.Instance.Rigidbody;
+            Player player = Player.Instance;
             _integralError = 0f;
+            bool success = true;
             while (true)
             {
+                // Verify if the robot is still on the ground, if it changes ground abort the open and start again
+                if (!player.IsGrounded())
+                {
+                    Debug.Log("Not grounded anymore");
+                    success = false;
+                    break;
+                }
+
+                
                 Vector3 currentUp = transform.up;
+                Vector3 groundNormal = player.GetGroundNormal();
+                if (!IsGroundCoverageSufficient(rb.position, spotDimensions, groundNormal))
+                {
+                    success = false;
+                    break;
+                }
+                Debug.DrawRay(transform.position, groundNormal*5f, Color.green,3f);
+
                 float angleDeg = Vector3.Angle(currentUp, groundNormal);
                 if (angleDeg <= alignmentTolerance) break;
 
@@ -83,27 +102,47 @@ namespace Player.Animation
 
                 rb.AddTorque(torque, ForceMode.Force);
                 rb.AddForce(-rb.linearVelocity.normalized*speedDownForce, ForceMode.VelocityChange);
+                
+                
                 yield return new WaitForFixedUpdate();
             }
 
-            onAligned?.Invoke();
+            if (success)
+            {
+                // Correctly aligned: can open
+                onAligned?.Invoke();
+            }
+            else
+            {
+                // Rollback module switch
+                Player.Instance.ControlModuleManager.RollbackSwitch();
+            }
         }
 
         IEnumerator AlignFast(Quaternion targetRot, float duration)
         {
             Rigidbody rb = Player.Instance.Rigidbody;
-
+            Player player = Player.Instance;
             Quaternion start = rb.rotation;
             float t = 0f;
+            bool success = true;
 
             while (t < duration)
             {
+                if (!player.IsGrounded())
+                {
+                    Debug.Log("Not grounded anymore");
+                    success = false;
+                    break;
+                }
                 t += Time.fixedDeltaTime;
                 Quaternion r = Quaternion.Slerp(start, targetRot, t / duration);
                 rb.MoveRotation(r);
+                rb.AddForce(-rb.linearVelocity*speedDownForce, ForceMode.VelocityChange);
                 yield return null;
             }
-            _onAligned?.Invoke();
+            if(success)
+                _onAligned?.Invoke();
 
 
         }
@@ -130,12 +169,12 @@ namespace Player.Animation
             }
             return positions[bestIndex];
         }
-        
+        */
         private bool IsAreaClear(Vector3 center, Vector2 halfExtentsXZ)
         {
             Vector3 halfExtents = new Vector3(halfExtentsXZ.x, 0.05f, halfExtentsXZ.y);
-            Vector3 boxCenter  = center + Vector3.down * 0.05f;
-            Collider[] hits   = Physics.OverlapBox(
+            Vector3 boxCenter = center + Vector3.down * 0.05f;
+            Collider[] hits = Physics.OverlapBox(
                 boxCenter,
                 halfExtents,
                 Quaternion.identity,
@@ -144,8 +183,61 @@ namespace Player.Animation
             return hits.Length == 0;
         }
         
+        private bool IsGroundCoverageSufficient(
+            Vector3 center,
+            Vector2 halfExtentsXZ,
+            Vector3 groundNormal,
+            int samplesPerAxis = 10
+        ) {
+            int hits = 0;
+            int total = samplesPerAxis * samplesPerAxis;
+            float requiredCoverage = 0.7f;
+
+            float halfHeight = 0.05f;
+
+            float rayStartY = center.y + halfHeight + 0.01f;
+
+            float rayLength = halfHeight + 1.5f;
+            float dx = (halfExtentsXZ.x * 2f) / (samplesPerAxis - 1);
+            float dz = (halfExtentsXZ.y * 2f) / (samplesPerAxis - 1);
+
+            Vector3 origin = center;
+            origin.y = rayStartY;
+            Color debugColor = Color.green;
+
+            for (int ix = 0; ix < samplesPerAxis; ix++) {
+                for (int iz = 0; iz < samplesPerAxis; iz++) {
+                    // compute sample position within box on XZ plane
+                    float offsetX = -halfExtentsXZ.x + dx * ix;
+                    float offsetZ = -halfExtentsXZ.y + dz * iz;
+                    Vector3 samplePos = new Vector3(origin.x + offsetX, origin.y, origin.z + offsetZ);
+                    Debug.DrawRay(samplePos, groundNormal * rayLength, debugColor, 0.1f);
+
+                    // raycast straight down
+                    if (Physics.Raycast(
+                            samplePos,
+                            Vector3.down,
+                            out RaycastHit hit,
+                            rayLength,
+                            groundLayerMask
+                        )) {
+                        hits++;
+                        debugColor = Color.green;
+                    }
+                    else
+                    {
+                        debugColor = Color.red;
+                    }
+                }
+            }
+
+            float coverage = (float)hits / total;
+            Debug.Log("Computed coverage: " + coverage);
+            return coverage >= requiredCoverage;
+        }
         
-        
+        /*
+
         private List<Vector3> FindFreeSpots()
         {
             List<Vector3> freeSpots = new List<Vector3>();

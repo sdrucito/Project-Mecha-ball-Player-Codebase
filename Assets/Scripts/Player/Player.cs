@@ -19,6 +19,7 @@ namespace Player
 
         [field: SerializeField] public PhysicsModule PhysicsModule { get; private set; }
 
+
         private void Awake()
         {
             if (Instance == null)
@@ -49,14 +50,14 @@ namespace Player
         private void OnCollisionEnter(Collision other)
         {
             // Create collision data wrapper
-            CollisionData collisionData = new CollisionData(other, other.gameObject.tag);
+            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag);
             _physicsModule.OnEnterPhysicsUpdate(collisionData);
         }
 
         private void OnCollisionExit(Collision other)
         {
             // Create collision data wrapper
-            CollisionData collisionData = new CollisionData(other, other.gameObject.tag);
+            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag);
             _physicsModule.OnExitPhysicsUpdate(collisionData);    
         }
 

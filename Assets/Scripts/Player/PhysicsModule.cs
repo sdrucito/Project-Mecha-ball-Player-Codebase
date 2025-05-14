@@ -14,11 +14,13 @@ namespace Player
     public struct CollisionData
     {
         public Collision CollisionInfo;
+        public int Layer;
         public string Tag;
 
-        public CollisionData(Collision collisionInfo, string tag)
+        public CollisionData(Collision collisionInfo, int layer, string tag)
         {
             CollisionInfo = collisionInfo;
+            Layer = layer;
             Tag = tag;
         }
     }
@@ -30,7 +32,7 @@ namespace Player
         private bool _isGrounded;
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
     
-        private Queue<string> _collisionTags = new Queue<string>();
+        private Queue<int> _collisionLayers = new Queue<int>();
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
 
@@ -39,22 +41,32 @@ namespace Player
         {
             get => _isRotating;
         }
+        private int _groundLayer;
 
 
         private void FixedUpdate()
         {
             //Debug.Log("GroundNormal: " + _groundNormal);
+            Debug.DrawRay(transform.position, _groundNormal*5f, Color.red,3f);
+
         }
+
+        private void Awake()
+        {
+            _groundLayer = LayerMask.NameToLayer("Ground");
+        }
+
 
         private void SetWalkGrounded()
         {
             RaycastManager raycastManager = Player.Instance.RaycastManager;
-            if (Player.Instance.ControlModuleManager && Player.Instance.ControlModuleManager.GetActiveModuleName() == "Walk")
+            ControlModuleManager controlModule = Player.Instance.ControlModuleManager;
+            if (controlModule && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
             {
                 if (raycastManager)
                 {
                     List<RaycastHit> hits = raycastManager.GetHitList();
-                    if (hits.Count > 1)
+                    if (hits.Count > 0)
                     {
                         // Is walking normally
                         _isGrounded = true;
@@ -62,7 +74,7 @@ namespace Player
                     }
                     else
                     {
-                        // During walking, the robot has stepped on a falling point
+                        // For some reason, the robot is falling
                         _isGrounded = false;
                     }
                     
@@ -77,15 +89,21 @@ namespace Player
             {
                 RaycastManager raycastManager = Player.Instance.RaycastManager;
                 List<RaycastHit> hits = raycastManager.GetHitList();
-                float maxCorrelation = 0.0f;
+                float maxCorrelation = 0.5f;
+                float sumCorrelation = 0.0f;
                 foreach (var hit in hits)
                 {
                     float correlation = GetMovementCorrelation(hit.point, movement);
-                    //Debug.Log("Computed correlation: " + correlation);
-                    if (correlation > maxCorrelation)
+                    if (correlation > 0.0f)
                     {
-                        return true;
+                        sumCorrelation += correlation;
                     }
+                    
+                }
+                //Debug.Log("Computed correlation: " + correlation);
+                if (sumCorrelation > maxCorrelation)
+                {
+                    return true;
                 }
                 return false;
             }
@@ -107,7 +125,44 @@ namespace Player
             
             Player.Instance.ControlModuleManager.SwitchMode();
         }
+        /*
+         * Function that computes the istantaneous normal that determines the rotation of the player
+         */
+        private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
+        {
+            if (!_isRotating)
+            {
+                Vector3 newNormal = AverageDirection(hits.ConvertAll(x => x.normal));
+                if (newNormal != _groundNormal)
+                {
+                    _groundNormal = newNormal;
+                    _isRotating = true;
+                }
+                else
+                {
+                    _isRotating = false;
+                }
+            }
+            
+        }
+        
+        private Vector3 AverageDirection(List<Vector3> vectors)
+        {
+            if (vectors == null || vectors.Count == 0)
+                return Vector3.zero;
 
+            Vector3 sum = Vector3.zero;
+            foreach (var v in vectors)
+            {
+                sum += v.normalized;
+            }
+
+            if (sum.sqrMagnitude < Mathf.Epsilon)
+                return Vector3.zero;
+
+            return sum.normalized;
+        }
+        /*
         private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
         {
             if (!_isRotating)
@@ -139,8 +194,7 @@ namespace Player
                 }
             }
             
-        }
-        
+        }*/
       
         public void OnRotatingEnd()
         {
@@ -149,13 +203,14 @@ namespace Player
 
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
+            if(hitData.Layer == _groundLayer)
+                _groundNormal = GetCollisionNormal(hitData);
             switch (hitData.Tag)
             {
-                case "Ground":
-                    _groundNormal = GetCollisionNormal(hitData);
+                default:
                     break;
             }
-            _collisionTags.Enqueue(hitData.Tag);
+            _collisionLayers.Enqueue(hitData.Layer);
             UpdateGrounded();
         }
     
@@ -163,10 +218,10 @@ namespace Player
         {
             switch (hitData.Tag)
             {
-                case "Ground":
-                    _isGrounded = false;
+                default:
                     break;
             }
+            Debug.Log("Called OnExit");
 
             TryDequeueTerrain(hitData);
             UpdateGrounded();
@@ -174,12 +229,7 @@ namespace Player
     
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            string tag;
-            _collisionTags.TryPeek(out tag);
-            if (tag == hitData.Tag)
-            {
-                _collisionTags.Dequeue();
-            }
+            _collisionLayers.Dequeue();
         }
 
         public bool IsGrounded()
@@ -190,9 +240,13 @@ namespace Player
 
         private void UpdateGrounded()
         {
-            if (_collisionTags.Contains("Ground"))
+            if (_collisionLayers.Contains(_groundLayer))
             {
                 _isGrounded = true;
+            }
+            else
+            {
+                _isGrounded = false;
             }
         }
         public Vector3 GetGroundNormal()
@@ -204,15 +258,15 @@ namespace Player
         {
             // Take the instantaneous velocity of the player to infer its movement direction
             // and understand the correct terrain point to consider
-            Vector3 instantaneousVelocity = Player.Instance.Rigidbody.linearVelocity;
             hitData.CollisionInfo.GetContacts(_contactPoints);
             ContactPoint? collisionPoint; 
-            GetCollisionPoint(instantaneousVelocity, out collisionPoint);
-            Debug.Log("CollisionPoint: " + collisionPoint);
+            GetCollisionPoint(out collisionPoint);
+
 
             // Get the normal and calculate the global angle with respect to the global Y axis
             if (collisionPoint.HasValue)
             {
+                Debug.DrawRay(transform.position, collisionPoint.Value.normal*5f, Color.red,3f);
                 return collisionPoint.Value.normal;
             }
             else
@@ -230,10 +284,9 @@ namespace Player
         {
             // Take the instantaneous velocity of the player to infer its movement direction
             // and understand the correct terrain point to consider
-            Vector3 instantaneousVelocity = Player.Instance.Rigidbody.linearVelocity;
             hitData.CollisionInfo.GetContacts(_contactPoints);
             ContactPoint? collisionPoint; 
-            GetCollisionPoint(instantaneousVelocity, out collisionPoint);
+            GetCollisionPoint(out collisionPoint);
             //Debug.Log("CollisionPoint: " + collisionPoint);
         
             // Get the normal and calculate the global angle with respect to the global Y axis
@@ -248,10 +301,41 @@ namespace Player
         }
 
         /*
+         * Function that returns the collision point to be considered as correct for ground normal computation
+         * It is taken based on the Down direction of the world
+         */
+        private void GetCollisionPoint(out ContactPoint? contactPoint)
+        {
+            Rigidbody rb = Player.Instance.Rigidbody;
+            if (_contactPoints.Count > 0)
+            {
+                float maxCorrelation = Vector3.Dot((rb.position - _contactPoints[0].point), Vector3.down);
+                int maxIndex = 0;
+                for (int i = 1; i < _contactPoints.Count; i++)
+                {
+                    float correlation = Vector3.Dot((rb.position - _contactPoints[i].point), Vector3.down);
+                    if (correlation > maxCorrelation)
+                    {
+                        maxIndex = i;
+                    }
+                }
+                
+                contactPoint = _contactPoints[maxIndex];
+             
+            }
+            else
+            {
+                contactPoint = null;
+            }
+        
+        }
+
+        
+        /*
          * Function that calculates the movement correlation for each contact points
          * and chooses the one with the highest value of correlation
          */
-        private void GetCollisionPoint(Vector3 instantaneousVelocity, out ContactPoint? contactPoint)
+        private void GetCollisionPoint_Deprecated(Vector3 instantaneousVelocity, out ContactPoint? contactPoint)
         {
             
             if (_contactPoints.Count > 0)

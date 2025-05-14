@@ -9,35 +9,11 @@ using UnityEngine.Serialization;
 
 namespace Player.Animation
 {
-    [System.Serializable]
-    public class LegAnimator
-    {
-    
-        public Transform Transform;
-        public float Lerp;
-        public Vector3 NewPosition;
-        public Vector3 OldPosition;
-        public SecondOrderDynamics SecondOrderDynamics;
-        public Vector3 RelativePosition;
-        public string Name;
-
-        public LegAnimator(Transform transform, float lerp, Vector3 newPosition, Vector3 oldPosition, SecondOrderDynamics secondOrderDynamics, Vector3 relativePosition, string name)
-        {
-            Transform = transform;
-            Lerp = lerp;
-            NewPosition = newPosition;
-            OldPosition = oldPosition;
-            SecondOrderDynamics = secondOrderDynamics;
-            RelativePosition = relativePosition;
-            Name = name;
-        }
-
-    }
 
 /*
  * Component that manages the procedural animation for the player movement
  */
-    public class PlayerWalkAnimator : MonoBehaviour
+    public class WalkAnimator : MonoBehaviour
     {
 
         [SerializeField, Range(0,3)] private float f;
@@ -87,42 +63,6 @@ namespace Player.Animation
         private Vector3 _lastPosition;
 
         public Action OnOpenFinished;
-        void Start()
-        {
-
-            // Initialize the second order resolvers for each foot
-            secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
-            secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
-            secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
-            secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
-
-            Vector3 relativePos = frontLeftFoot.position - center.position;
-            relativePos.y += footHeight;
-            _frontLeftFootAnim = new LegAnimator(frontLeftFoot, 1f, frontLeftFoot.position, frontLeftFoot.position, secondOrderDynamicsFlF, relativePos, "fl");
-            relativePos = frontRightFoot.position - Player.Instance.Rigidbody.position;
-            relativePos.y += footHeight;
-            _frontRightFootAnim = new LegAnimator(frontRightFoot, 1f, frontRightFoot.position, frontRightFoot.position, secondOrderDynamicsFrF, relativePos, "fr");
-            relativePos = rearLeftFoot.position - Player.Instance.Rigidbody.position;
-            relativePos.y += footHeight;
-            _rearLeftFootAnim = new LegAnimator(rearLeftFoot, 1f, rearLeftFoot.position, rearLeftFoot.position, secondOrderDynamicsRlF, relativePos, "rl");
-            relativePos = rearRightFoot.position - Player.Instance.Rigidbody.position;
-            relativePos.y += footHeight;
-            _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamicsRrF, relativePos, "rr");
-        
-            _legs.Add(_frontLeftFootAnim);
-            _legs.Add(_frontRightFootAnim);
-            _legs.Add(_rearLeftFootAnim);
-            _legs.Add(_rearRightFootAnim);
-        
-            _groupALegs.Add(_frontLeftFootAnim);
-            _groupALegs.Add(_rearRightFootAnim);
-        
-            _groupBLegs.Add(_frontRightFootAnim);
-            _groupBLegs.Add(_rearLeftFootAnim);
-            _lastPosition = transform.position;
-            
-            InitializeLegs();
-        }
 
         private bool VerifyMove()
         {
@@ -142,6 +82,55 @@ namespace Player.Animation
             ReturnLegToIdle();
             MoveLegs(StepGroup.Idle); 
         }
+/*
+        void FixedUpdate()
+        {
+            bool isMoving   = VerifyMove();
+            bool isGrounded = Player.Instance.IsGrounded();
+            Debug.Log("IsGrounded: " + isGrounded);
+
+            // 1) Opening / floating / idle all just snap home
+            if (_currentGroup == StepGroup.Opening || !isGrounded || (!isMoving && _currentGroup != StepGroup.Idle))
+            {
+                if (_currentGroup != StepGroup.Idle)
+                    ReturnLegToIdle();
+                _currentGroup = StepGroup.Idle;
+                MoveLegs(StepGroup.Idle);
+                _wasMoving = false;
+                return;
+            }
+
+            // 1b) Don’t start your very first step until we’ve done at least one grounded pass
+            if (_justFinishedOpening)
+            {
+                // run your raycasts so every leg.NewPosition is set
+                VerifyGroundedForGroup(StepGroup.GroupA);
+                VerifyGroundedForGroup(StepGroup.GroupB);
+                _justFinishedOpening = false;
+                return;
+            }
+
+            // 2) Normal walking
+            if (isMoving && !_wasMoving)
+            {
+                _currentGroup = StepGroup.GroupA;
+                StartStepForGroup(_currentGroup);
+            }
+            else if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(_currentGroup))
+            {
+                _currentGroup = StepGroup.GroupB;
+                StartStepForGroup(_currentGroup);
+            }
+            else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(_currentGroup))
+            {
+                _currentGroup = StepGroup.GroupA;
+                StartStepForGroup(_currentGroup);
+            }
+
+            MoveLegs(_currentGroup);
+            _wasMoving = isMoving;
+        }
+        */
 
         void FixedUpdate()
         {
@@ -149,11 +138,12 @@ namespace Player.Animation
             {
                 //Debug.Log("CurrentGroup: " + _currentGroup);
                 // Call the update for each leg and set the new IK position
-                VerifyGroundedForGroup(StepGroup.GroupA);
-                VerifyGroundedForGroup(StepGroup.GroupB);
                 bool isMoving = VerifyMove();
                 bool isGrounded = Player.Instance.IsGrounded();
                 //Debug.Log("IsGrounded " + isGrounded);
+
+                VerifyGroundedForGroup(StepGroup.GroupA);
+                VerifyGroundedForGroup(StepGroup.GroupB);
                 
                 
                 if (!isGrounded)
@@ -284,10 +274,8 @@ namespace Player.Animation
             if (legAnimator.Lerp < 1f)
             {
                 legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.deltaTime * stepSpeed, 1f);
-                float t = Mathf.SmoothStep(0f, 1f, legAnimator.Lerp);
-
                 float verticalOffset = 0f;
-                verticalOffset = Mathf.Sin(t * Mathf.PI) * stepHeight;
+                verticalOffset = Mathf.Sin(legAnimator.Lerp * Mathf.PI) * stepHeight;
         
                 //Vector3 planarPos = GetLegPlanarPosition(legAnimator);
 

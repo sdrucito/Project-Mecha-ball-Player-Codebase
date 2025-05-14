@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Player.Animation;
 using UnityEngine;
 
 public class RaycastManager : MonoBehaviour
 {
 
-    [SerializeField] private float stepLength = 2.0f;
+    [SerializeField] private float stepLength = 5.0f;
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float stepAnticipationMultiplier = 25f;
     [SerializeField] private string terrainLayer;
-    [SerializeField] private float maxMovementMagnitude = 0.5f;
+    [SerializeField] private float maxMovementMagnitude = 1f;
     private Rigidbody _rigidbody;
-    private readonly List<RaycastHit> _hitList = new List<RaycastHit>();
+    private readonly Dictionary<string, RaycastHit> _hitList = new Dictionary<string, RaycastHit>();
     private List<LegAnimator> _legs = new List<LegAnimator>();
     
     private Vector3 _lastRootPos;
@@ -48,11 +49,55 @@ public class RaycastManager : MonoBehaviour
         _movementDelta = Vector3.ClampMagnitude(_movementDelta, maxMovementMagnitude);
     }
 
+    
+
+    public void ExecuteGroundedForLeg(LegAnimator leg)
+    {
+        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+        {
+            _hitList.TryAdd(leg.Name, hit);
+        }
+        
+    }
+    
     /*
      * Function that verifies if the player can move basing on the anticipation for leg
      * It calculates, for a leg, the next position in the step and triggers the step movement
      */
-    public void ExecuteStepForLeg(LegAnimator leg)
+    public bool ExecuteStepForLeg(LegAnimator leg)
+    {
+
+        //Vector3 relativePos = pivot + horizontalOffset + anticipation;
+        //relativePos.y = _rigidbody.position.y;
+        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
+        RaycastHit hit;
+        bool res = _hitList.TryGetValue(leg.Name, out hit);
+        // Verify if the hit distance is greater than the step length
+        if (res)
+        {
+            if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
+            {
+                leg.Lerp = 0;
+                leg.OldPosition  = leg.NewPosition;
+                leg.NewPosition = hit.point;
+            }
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+        
+    }
+    
+    /*
+     *
+     public void ExecuteStepForLeg(LegAnimator leg)
     {
 
         //Vector3 relativePos = pivot + horizontalOffset + anticipation;
@@ -73,20 +118,7 @@ public class RaycastManager : MonoBehaviour
             
            
     }
-
-    public RaycastHit? ExecuteGroundedForLeg(LegAnimator leg)
-    {
-        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-        {
-            _hitList.Add(hit);
-        }
-
-        return hit;
-
-    }
+     */
     
     /*
      * Function that calculates the Idle position for a leg (using raycasts) and triggers
@@ -114,7 +146,31 @@ public class RaycastManager : MonoBehaviour
         }
     }
     
+    /*
+    public void ExecuteResetPosition(LegAnimator leg)
+    {
+        Transform reference = _rigidbody.transform;
+        
+        Quaternion bodyRot = reference.rotation;
+        Vector3 fullOffset = bodyRot * leg.RelativePosition;
+        Vector3 worldOrigin = _rigidbody.transform.position 
+                              + fullOffset;
+        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
+        RaycastHit hit;
+        bool res = _hitList.TryGetValue(leg.Name, out hit);
+        if (res)
+        {
+            leg.Transform.position = hit.point;
+            leg.OldPosition = hit.point;
+            leg.NewPosition = hit.point;
+            leg.Lerp = 1f;
+        }
+    }
+    */
     
+    /*
+     * Function that calculates the position of legs after a reset of the walking animator and resets it
+     */
     public void ExecuteResetPosition(LegAnimator leg)
     {
         Transform reference = _rigidbody.transform;
@@ -134,6 +190,7 @@ public class RaycastManager : MonoBehaviour
             leg.Lerp = 1f;
         }
     }
+     
 
     private Vector3 ComputeLegPositionForStep(LegAnimator leg)
     {
@@ -143,7 +200,7 @@ public class RaycastManager : MonoBehaviour
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
         Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
-        anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
+        //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
         Vector3 worldOrigin = _rigidbody.transform.position 
                               + fullOffset 
                               + anticipation;
@@ -168,13 +225,45 @@ public class RaycastManager : MonoBehaviour
 
     public List<RaycastHit> GetHitList()
     {
-        return _hitList;
+        return _hitList.Values.ToList();
     }
    
     public void SetLegs(List<LegAnimator> legs)
     {
         _legs = legs;
     }
+    
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.yellow;
+        foreach (var leg in _legs)
+        {
+         
+            Vector3 origin = ComputeLegPositionForStep(leg);
+            Vector3 direction = -_rigidbody.transform.up.normalized;
+
+            // Draw full test ray
+            Gizmos.DrawLine(origin, origin + direction * jumpHeight);
+            // Draw every test ray in Play mode
+            Debug.DrawRay(origin, direction * jumpHeight, Color.yellow);
+            RaycastHit hit;
+            // Show hit point
+            bool res = _hitList.TryGetValue(leg.Name, out hit);
+            if (res)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(origin, hit.point);
+                Gizmos.DrawSphere(hit.point, 0.15f);
+                Gizmos.color = Color.yellow;  // reset for next leg
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawSphere(leg.NewPosition, 0.10f);
+            }
+                
+            
+        }
+    }
+    
+    /*
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
@@ -199,7 +288,7 @@ public class RaycastManager : MonoBehaviour
                 Gizmos.DrawSphere(leg.NewPosition, 0.10f);
             }
         }
-    }
+    }*/
   
     
     
