@@ -50,7 +50,6 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
-                //_controller.enabled = false;
                 playerWalkAnimator.enabled = false;
 
             }
@@ -77,23 +76,20 @@ namespace Player.ControlModules
         {
             Vector3 groundNormal = Player.Instance.GetGroundNormal();
             Vector3 projectedMove = ProjectedMove(groundNormal);
-            if (Player.Instance.CanMove(projectedMove))
+            if (Player.Instance.CanMove(projectedMove) && _inputVector.magnitude > 0.01f)
             {
                 // Rotate the player according to normal
+                _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
+                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
+
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
+                Debug.DrawRay(_controller.transform.position, projectedMove, Color.green,5f);
                 ApplyRotation();
                 //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
-
-                /*
-                // Calculate the movement
-                if(move != Vector3.zero)
-                    _controller.Move(move);
-                */
                 
                 var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
                 if(moveDirection != Vector3.zero)
                     _controller.Move(moveDirection);
-            
                 
             }
             ApplyTouchGrounded();
@@ -176,24 +172,11 @@ namespace Player.ControlModules
             var move = inputMap[bestIndex];
             return Vector3.ProjectOnPlane(move.normalized, normal);
         }
-
-        private Vector3 GetMovement(Vector3 groundNormal)
-        {
-            Vector3 horizontalMove = Vector3.zero;
-            Vector3 projectedMove = Vector3.zero;
-            if (Math.Abs(groundNormal.y) < 0.01f){
-                projectedMove = new Vector3(0, -_inputVector.x, _inputVector.y).normalized;
-            }else{
-                horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
-                projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
-            }
-            var move = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
-            return move;
-        }
+        
         private void ApplyRotation()
         {
             PhysicsModule physicsModule = Player.Instance.PhysicsModule;
-            if (physicsModule && physicsModule.IsRotating)
+            if (physicsModule)
             {
                 //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
 
