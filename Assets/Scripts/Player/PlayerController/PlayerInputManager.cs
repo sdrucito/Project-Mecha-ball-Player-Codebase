@@ -20,8 +20,8 @@ namespace Player.PlayerController
         public event Action OnJumpInput;
         public event Action OnModeChangeInput;
         public event Action<Vector2> OnSprintImpulseInput;
-        public event Action SetCamera1;
-        public event Action SetCamera2;
+        public event Action PreviousCamera;
+        public event Action NextCamera;
     
         private Vector2 _currentMoveInput = Vector2.zero;
         private bool _isSprintImpulse = false;
@@ -54,8 +54,8 @@ namespace Player.PlayerController
             _changeModeAction.started += ctx => OnModeChangeInput?.Invoke();
             _sprintImpulseAction.started += ctx => _isSprintImpulse = true;
             _sprintImpulseAction.canceled += ctx => _isSprintImpulse = false;
-            _previousCameraAction.started += ctx => SetCamera1?.Invoke();
-            _nextCameraAction.started += ctx => SetCamera2?.Invoke();
+            _previousCameraAction.started += ctx => PreviousCamera?.Invoke();
+            _nextCameraAction.started += ctx => NextCamera?.Invoke();
         }
 
         private void FixedUpdate()
@@ -116,7 +116,7 @@ namespace Player.PlayerController
         
         public void SetInputRotation(float angle)
         {
-            _inputRotationAngle = angle;
+            _inputRotationAngle += angle;
         }
         #endregion
 
