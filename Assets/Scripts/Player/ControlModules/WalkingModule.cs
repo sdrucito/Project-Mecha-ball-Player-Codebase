@@ -2,6 +2,7 @@ using System;
 using Player.Animation;
 using Player.PlayerController;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
@@ -10,12 +11,13 @@ namespace Player.ControlModules
 {
     public class WalkingModule : ControlModule
     {
-        [SerializeField] private float WalkingSpeed = 5f;
-        [SerializeField] private float Gravity = -9.8f;
+        [SerializeField] private float walkingSpeed = 5f;
+        [SerializeField] private float gravity = -9.8f;
+        [SerializeField] private float acceleration = 1.5f;
         [SerializeField] private float rotationSpeed = 120f;
 
-        private float _verticalVelocity=0;
-
+        private float _verticalVelocity=0.0f;
+        private float _movementVelocity=0.0f;
         private CharacterController _controller;
         private Vector2 _inputVector = Vector2.zero;
     
@@ -82,19 +84,23 @@ namespace Player.ControlModules
                 // Rotate the player according to normal
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 ApplyRotation();
-                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
 
-                /*
-                // Calculate the movement
-                if(move != Vector3.zero)
-                    _controller.Move(move);
-                */
-                
-                var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
-                if(moveDirection != Vector3.zero)
+                if (projectedMove != Vector3.zero)
+                {
+                    _movementVelocity = Mathf.MoveTowards(_movementVelocity, walkingSpeed, acceleration * Time.fixedDeltaTime);
+                    Debug.Log("Movement velocity: " + _movementVelocity);
+                    var moveDirection = projectedMove * (_movementVelocity * Time.fixedDeltaTime);
                     _controller.Move(moveDirection);
-            
+                }
+                else
+                {
+                    _movementVelocity = 0.0f;
+                }
                 
+            }
+            else
+            {
+                _movementVelocity = 0.0f;
             }
             ApplyTouchGrounded();
 
@@ -187,7 +193,7 @@ namespace Player.ControlModules
                 horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
                 projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
             }
-            var move = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+            var move = projectedMove * (walkingSpeed * Time.fixedDeltaTime);
             return move;
         }
         private void ApplyRotation()
@@ -195,8 +201,6 @@ namespace Player.ControlModules
             PhysicsModule physicsModule = Player.Instance.PhysicsModule;
             if (physicsModule && physicsModule.IsRotating)
             {
-                //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
-
                 transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
                 if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
                     physicsModule.OnRotatingEnd();
@@ -206,14 +210,14 @@ namespace Player.ControlModules
 
         private void ApplyTouchGrounded()
         {
-            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
+            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * gravity);
             _controller.Move(attach * Time.fixedDeltaTime);
             //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
 
         }
         private void ApplyGravity()
         {
-            _verticalVelocity += Gravity * Time.fixedDeltaTime;
+            _verticalVelocity += gravity * Time.fixedDeltaTime;
             Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
             _controller.Move(fall * Time.fixedDeltaTime);
         }

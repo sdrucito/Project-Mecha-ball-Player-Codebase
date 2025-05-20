@@ -391,13 +391,20 @@ namespace Player.Animation
 
         void VerifyGroundedForGroup(StepGroup group)
         {
-            if (Player.Instance.RaycastManager)
+            RaycastManager raycastManager = Player.Instance.RaycastManager;
+            if (raycastManager)
             {
                 List<LegAnimator> leg = (group == StepGroup.GroupA) ? _groupALegs : _groupBLegs;
                 
                 for (int i = 0; i < leg.Count; i++)
                 {
-                    Player.Instance.RaycastManager.ExecuteGroundedForLeg(leg[i]);
+                    raycastManager.ExecuteGroundedForLeg(leg[i]);
+                    if (!raycastManager.IsLegGrounded(leg[i].Name))
+                    {
+                        // Try to raycast for over-slope
+                        raycastManager.ExecuteGroundedForOverLimitSlope(leg[i]);
+                        
+                    }
                 }
             }
         }

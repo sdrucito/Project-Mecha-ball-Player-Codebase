@@ -11,7 +11,9 @@ namespace Player.ControlModules
     
         [SerializeField] private float jumpImpulseMagnitude;
         [SerializeField] private float sprintImpulseMagnitude;
-
+        [SerializeField] private float sprintCooldownTime;
+        
+        private bool _canSprint = true;
         private void Awake()
         {
             name = "Ball";
@@ -46,11 +48,19 @@ namespace Player.ControlModules
     
         private void Input_SprintImpulse(Vector2 direction)
         {
-            if (Player.Instance.IsGrounded())
+            if (Player.Instance.IsGrounded() && _canSprint)
             {
                 //Debug.Log("Firing sprint impulse");
                 Player.Instance.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
+                StartCoroutine(SprintCoroutine());
             }
+        }
+
+        private IEnumerator SprintCoroutine()
+        {
+            _canSprint = false;
+            yield return new WaitForSeconds(sprintCooldownTime);
+            _canSprint = true;
         }
     }
 }

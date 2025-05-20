@@ -49,8 +49,19 @@ public class RaycastManager : MonoBehaviour
         _movementDelta = Vector3.ClampMagnitude(_movementDelta, maxMovementMagnitude);
     }
 
-    
 
+    public bool IsLegGrounded(string legName)
+    {
+        if (_hitList.ContainsKey(legName))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    
     public void ExecuteGroundedForLeg(LegAnimator leg)
     {
         Vector3 worldOrigin = ComputeLegPositionForStep(leg);
@@ -61,6 +72,41 @@ public class RaycastManager : MonoBehaviour
             _hitList.TryAdd(leg.Name, hit);
         }
         
+    }
+    
+    public void ExecuteGroundedForOverLimitSlope(LegAnimator leg)
+    {
+        // 1. origin of the ray
+        Vector3 worldOrigin    = ComputeLegPositionForOverSlope(leg);
+        Vector3 bodyCenter     = _rigidbody.transform.position;
+    
+        // 2. pure downward direction
+        Vector3 downDir        = -_rigidbody.transform.up;
+    
+        // 3. horizontal “side” direction from body center to leg
+        Vector3 sideDir = (bodyCenter   - worldOrigin);
+        sideDir.y              = 0;               // flatten to horizontal
+        if (sideDir.sqrMagnitude < 1e-6f)
+            sideDir = _rigidbody.transform.right; // fallback if leg is exactly under center
+        sideDir.Normalize();
+    
+        // 4. mix them at 45°: rotate 'downDir' toward 'sideDir' by 45° (in radians)
+        float   angleRad       = 45f * Mathf.Deg2Rad;
+        Vector3 tiltedDir      = Vector3.RotateTowards(downDir, sideDir, angleRad, 0f).normalized;
+        Debug.DrawRay(
+            worldOrigin,
+            tiltedDir * jumpHeight,
+            Color.red,
+            /* duration */ 0.1f,
+            /* depthTest */ true
+        );
+        // 5. cast the ray
+        Ray       ray           = new Ray(worldOrigin, tiltedDir);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, jumpHeight*2, LayerMask.GetMask(terrainLayer)))
+        {
+            _hitList.TryAdd(leg.Name, hit);
+        }
     }
     
     /*
@@ -94,6 +140,7 @@ public class RaycastManager : MonoBehaviour
         }
         
     }
+    
     
     /*
      *
@@ -207,6 +254,23 @@ public class RaycastManager : MonoBehaviour
         //Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
         return worldOrigin;
     }
+    
+    private Vector3 ComputeLegPositionForOverSlope(LegAnimator leg)
+    {
+        
+        Transform reference = _rigidbody.transform;
+        
+        Quaternion bodyRot = reference.rotation;
+        Vector3 fullOffset = bodyRot * leg.RelativePosition;
+        Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier * 1.5f; // Add more anticipation
+        //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
+        Vector3 worldOrigin = _rigidbody.transform.position 
+                              + fullOffset 
+                              + anticipation;
+        Debug.DrawLine(reference.position, worldOrigin, Color.green);
+        return worldOrigin;
+    }
+    
     
     /*
      * Clears the last FixedUpdate frame hit list, preparing the logic

@@ -147,96 +147,61 @@ namespace Player.Animation
 
         }
         
-        /*
-         // Method that takes the linear velocity and calculates the best position regarding to it
-        private Vector3 FindBestPosition(List<Vector3> positions)
-        {
-            Vector3 movementDirection = Player.Instance.Rigidbody.linearVelocity;
-
-            Vector3 posVector = Player.Instance.Rigidbody.position - positions[0];
-            float bestPosVec = Vector3.Dot(posVector.normalized, movementDirection);
-            int bestIndex = 0;
-            for (int i = 0; i < positions.Count; i++)
-            {
-                posVector = Player.Instance.Rigidbody.position - positions[i];
-                float posVec = Vector3.Dot(posVector.normalized, movementDirection);
-                if (posVec > bestPosVec)
-                {
-                    bestPosVec = posVec;
-                    bestIndex = i;
-                }
-                
-            }
-            return positions[bestIndex];
-        }
-        */
         private bool IsAreaClear(Vector3 center, Vector2 halfExtentsXZ)
         {
             Vector3 halfExtents = new Vector3(halfExtentsXZ.x, 0.05f, halfExtentsXZ.y);
             Vector3 boxCenter = center + Vector3.down * 0.05f;
-            Collider[] hits = Physics.OverlapBox(
-                boxCenter,
-                halfExtents,
-                Quaternion.identity,
-                groundLayerMask
-            );
+            Collider[] hits = Physics.OverlapBox(boxCenter, halfExtents, Quaternion.identity, groundLayerMask);
             return hits.Length == 0;
         }
         
-        private bool IsGroundCoverageSufficient(
-            Vector3 center,
-            Vector2 halfExtentsXZ,
-            Vector3 groundNormal,
-            int samplesPerAxis = 10
-        ) {
+        private bool IsGroundCoverageSufficient(Vector3 center, Vector2 halfExtentsPlane, Vector3 groundNormal, float requiredCoverage = 0.7f, int samplesPerAxis = 10) {
+            // Build an orthonormal basis (tangent, bitangent, normal)
+            Vector3 n = groundNormal.normalized;
+            // pick any vector not parallel to n:
+            Vector3 arbitrary = Mathf.Abs(Vector3.Dot(n, Vector3.up)) < 0.9f ? Vector3.up : Vector3.right;
+            Vector3 tangent = Vector3.Cross(arbitrary, n).normalized;
+            Vector3 bitangent = Vector3.Cross(n, tangent);
+
+            // Ray setup
+            float halfHeight = 0.05f;        
+            float startDist = halfHeight + 0.01f;
+            float rayLength = halfHeight + 1.5f; 
+            Vector3 rayDir = -n;             
+
+            // Grid step sizes in plane‐local space
+            float dx = (halfExtentsPlane.x * 2f) / (samplesPerAxis - 1);
+            float dz = (halfExtentsPlane.y * 2f) / (samplesPerAxis - 1);
+
             int hits = 0;
             int total = samplesPerAxis * samplesPerAxis;
-            float requiredCoverage = 0.7f;
 
-            float halfHeight = 0.05f;
-
-            float rayStartY = center.y + halfHeight + 0.01f;
-
-            float rayLength = halfHeight + 1.5f;
-            float dx = (halfExtentsXZ.x * 2f) / (samplesPerAxis - 1);
-            float dz = (halfExtentsXZ.y * 2f) / (samplesPerAxis - 1);
-
-            Vector3 origin = center;
-            origin.y = rayStartY;
-            Color debugColor = Color.green;
-
+            // Sample loop
             for (int ix = 0; ix < samplesPerAxis; ix++) {
                 for (int iz = 0; iz < samplesPerAxis; iz++) {
-                    // compute sample position within box on XZ plane
-                    float offsetX = -halfExtentsXZ.x + dx * ix;
-                    float offsetZ = -halfExtentsXZ.y + dz * iz;
-                    Vector3 samplePos = new Vector3(origin.x + offsetX, origin.y, origin.z + offsetZ);
-                    Debug.DrawRay(samplePos, groundNormal * rayLength, debugColor, 0.1f);
+                    // plane offsets
+                    float offX = -halfExtentsPlane.x + dx * ix;
+                    float offZ = -halfExtentsPlane.y + dz * iz;
 
-                    // raycast straight down
-                    if (Physics.Raycast(
-                            samplePos,
-                            Vector3.down,
-                            out RaycastHit hit,
-                            rayLength,
-                            groundLayerMask
-                        )) {
+                    // sample origin: center lifted out along normal, then offset in plane
+                    Vector3 sampleOrigin = center + n * startDist + tangent * offX + bitangent * offZ;
+
+                    Debug.DrawRay(sampleOrigin, rayDir * rayLength,
+                                  Color.Lerp(Color.red, Color.green, 0.5f),
+                                  0.1f);
+
+                    // cast along inverted ground normal
+                    if (Physics.Raycast(sampleOrigin, rayDir, rayLength, groundLayerMask)) {
                         hits++;
-                        debugColor = Color.green;
-                    }
-                    else
-                    {
-                        debugColor = Color.red;
                     }
                 }
             }
 
             float coverage = (float)hits / total;
-            Debug.Log("Computed coverage: " + coverage);
+
             return coverage >= requiredCoverage;
         }
-        
-        /*
+                /*
 
         private List<Vector3> FindFreeSpots()
         {

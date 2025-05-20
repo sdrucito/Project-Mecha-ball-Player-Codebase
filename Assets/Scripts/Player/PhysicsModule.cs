@@ -42,14 +42,7 @@ namespace Player
             get => _isRotating;
         }
         private int _groundLayer;
-
-
-        private void FixedUpdate()
-        {
-            //Debug.Log("GroundNormal: " + _groundNormal);
-            Debug.DrawRay(transform.position, _groundNormal*5f, Color.red,3f);
-
-        }
+        
 
         private void Awake()
         {
@@ -162,39 +155,7 @@ namespace Player
 
             return sum.normalized;
         }
-        /*
-        private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
-        {
-            if (!_isRotating)
-            {
-                if (raycastManager.GetMovementDelta().magnitude > 0.0f)
-                {
-                    float maxCorrelation = 0.0f;
-                    foreach (var hit in hits)
-                    {
-                        float correlation = GetMovementCorrelation(hit.point, raycastManager.GetMovementDelta());
-                        if (correlation > maxCorrelation && correlation > minCorrelationForTransition)
-                        {
-                            if (hit.normal != _groundNormal)
-                            {
-                                _isRotating = true;
-                            }
-                            else
-                            {
-                                _isRotating = false;
-                            }
-                            _groundNormal = hit.normal;
-                            maxCorrelation = correlation;
-                        }
-                    }
-                }
-                else
-                {
-                    _groundNormal = hits[0].normal;
-                }
-            }
-            
-        }*/
+       
       
         public void OnRotatingEnd()
         {
@@ -287,7 +248,6 @@ namespace Player
             hitData.CollisionInfo.GetContacts(_contactPoints);
             ContactPoint? collisionPoint; 
             GetCollisionPoint(out collisionPoint);
-            //Debug.Log("CollisionPoint: " + collisionPoint);
         
             // Get the normal and calculate the global angle with respect to the global Y axis
             if (collisionPoint.HasValue)
@@ -382,7 +342,6 @@ namespace Player
             Vector3 velLocal = rb.transform.InverseTransformDirection(velocity);
             velLocal.y = 0f;
 
-            // 4) dot in local XZ
             return Vector3.Dot(toPointLocal.normalized, velLocal.normalized);
         }
     }
