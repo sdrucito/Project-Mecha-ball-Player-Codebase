@@ -10,6 +10,7 @@ public class RaycastManager : MonoBehaviour
     [SerializeField] private float stepLength = 5.0f;
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float stepAnticipationMultiplier = 25f;
+    [SerializeField] private float rotAnticipationMultiplier = 0.5f;
     [SerializeField] private string terrainLayer;
     [SerializeField] private float maxMovementMagnitude = 1f;
     private Rigidbody _rigidbody;
@@ -18,6 +19,8 @@ public class RaycastManager : MonoBehaviour
     
     private Vector3 _lastRootPos;
     private Vector3 _movementDelta;
+    private Quaternion _lastRotation;
+    private Quaternion _rotationDelta;
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
@@ -26,6 +29,7 @@ public class RaycastManager : MonoBehaviour
     private void Start()
     {
         _lastRootPos = _rigidbody.position;
+        _lastRotation = _rigidbody.rotation;
     }
 
     /*
@@ -44,6 +48,9 @@ public class RaycastManager : MonoBehaviour
     void FixedUpdate()
     {
         _movementDelta = _rigidbody.position - _lastRootPos;
+        _rotationDelta = _rigidbody.rotation * Quaternion.Inverse(_lastRotation);
+
+        _lastRotation = _rigidbody.rotation;
         _lastRootPos = _rigidbody.position;
         // Clamp movement delta to avoid strange behaviors
         _movementDelta = Vector3.ClampMagnitude(_movementDelta, maxMovementMagnitude);
@@ -246,11 +253,17 @@ public class RaycastManager : MonoBehaviour
         
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
+        // Linear movement anticipation
         Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
+        
+        // Rotation anticipation
+        Vector3 rotatedOffset = _rotationDelta * fullOffset;
+        Vector3 rotationalAnt = (rotatedOffset - fullOffset) * rotAnticipationMultiplier;
+
         //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
         Vector3 worldOrigin = _rigidbody.transform.position 
                               + fullOffset 
-                              + anticipation;
+                              + anticipation + rotationalAnt;
         //Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
         return worldOrigin;
     }

@@ -166,7 +166,7 @@ namespace Player.Animation
             // Ray setup
             float halfHeight = 0.05f;        
             float startDist = halfHeight + 0.01f;
-            float rayLength = halfHeight + 1.5f; 
+            float rayLength = halfHeight + 2.3f; 
             Vector3 rayDir = -n;             
 
             // Grid step sizes in plane‐local space
