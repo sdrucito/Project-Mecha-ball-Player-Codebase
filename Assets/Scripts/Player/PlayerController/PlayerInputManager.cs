@@ -10,6 +10,7 @@ namespace Player.PlayerController
         private PlayerInput _playerInput;
     
         private InputAction _moveAction;
+        private InputAction _lookAction;
         private InputAction _jumpAction;
         private InputAction _changeModeAction;
         private InputAction _sprintImpulseAction;
@@ -17,6 +18,7 @@ namespace Player.PlayerController
         private InputAction _nextCameraAction;
     
         public event Action<Vector2> OnMoveInput;
+        public event Action<Vector2> OnLookInput;
         public event Action OnJumpInput;
         public event Action OnModeChangeInput;
         public event Action<Vector2> OnSprintImpulseInput;
@@ -24,6 +26,7 @@ namespace Player.PlayerController
         public event Action NextCamera;
     
         private Vector2 _currentMoveInput = Vector2.zero;
+        private Vector2 _currentDirectionInput = Vector2.zero;
         private bool _isSprintImpulse = false;
         private float _inputRotationAngle = 0f;
         
@@ -42,6 +45,7 @@ namespace Player.PlayerController
 
             _playerInput = GetComponent<PlayerInput>();
             _moveAction = _playerInput.actions.FindAction("Move");
+            _lookAction = _playerInput.actions.FindAction("Look");
             _jumpAction = _playerInput.actions.FindAction("Jump");
             _changeModeAction = _playerInput.actions.FindAction("ChangeMode");
             _sprintImpulseAction = _playerInput.actions.FindAction("Sprint");
@@ -50,6 +54,8 @@ namespace Player.PlayerController
         
             _moveAction.performed += ctx => _currentMoveInput = ctx.ReadValue<Vector2>();
             _moveAction.canceled += ctx => _currentMoveInput = Vector2.zero;
+            _lookAction.performed += ctx => _currentDirectionInput = ctx.ReadValue<Vector2>();
+            _lookAction.canceled += ctx => _currentDirectionInput = Vector2.zero;
             _jumpAction.started += ctx => OnJumpInput?.Invoke();
             _changeModeAction.started += ctx => OnModeChangeInput?.Invoke();
             _sprintImpulseAction.started += ctx => _isSprintImpulse = true;
@@ -66,6 +72,7 @@ namespace Player.PlayerController
             {
                 OnSprintImpulseInput?.Invoke(inputCameraRelative);
             }
+            OnLookInput?.Invoke(_currentDirectionInput);
         }
         
         private Vector2 RotateInput(Vector2 input, float angleDegrees)
@@ -101,7 +108,6 @@ namespace Player.PlayerController
             }
         }
         
-        
         public void ResetAction(string actionName)
         {
             var action = _playerInput.actions.FindAction(actionName);
@@ -119,6 +125,5 @@ namespace Player.PlayerController
             _inputRotationAngle += angle;
         }
         #endregion
-
     }
 }

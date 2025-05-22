@@ -11,16 +11,19 @@ namespace Player.ControlModules
 {
     public class WalkingModule : ControlModule
     {
-        [SerializeField] private float walkingSpeed = 5f;
-        [SerializeField] private float gravity = -9.8f;
-        [SerializeField] private float acceleration = 1.5f;
-        [SerializeField] private float rotationSpeed = 120f;
+        [SerializeField] private float WalkingSpeed = 5f;
+        [SerializeField] private float Gravity = -9.8f;
+        [SerializeField] private float RotationSpeedOnSlope = 80f;
+        [SerializeField] private float RotationSpeed = 40f;
+        [SerializeField] private float ManualRotationMultiplier = 2f;
 
-        private float _verticalVelocity=0.0f;
-        private float _movementVelocity=0.0f;
+        private float _verticalVelocity=0;
+
         private CharacterController _controller;
         private Vector2 _inputVector = Vector2.zero;
-    
+        private Vector2 _directionInputVector = Vector2.zero;
+        private Quaternion _currentRotation;
+            
         [SerializeField] private PlayerKneeWalkAnimator playerWalkAnimator;
         
         private Quaternion _targetRotation = Quaternion.identity;
@@ -41,6 +44,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
+                PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 OpenFinished();
                 playerWalkAnimator.enabled = true;
                 PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
@@ -52,10 +56,9 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
+                PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 playerWalkAnimator.enabled = false;
-
             }
-
         }
 
         private void OpenFinished()
@@ -65,6 +68,11 @@ namespace Player.ControlModules
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;
+        }
+
+        private void HandleDirection(Vector2 input)
+        {
+            _directionInputVector = input;
         }
         
         // Update is called once per frame
@@ -77,34 +85,35 @@ namespace Player.ControlModules
         private void ExecuteMovement()
         {
             Vector3 groundNormal = Player.Instance.GetGroundNormal();
-            Vector3 projectedMove = ProjectedMove(groundNormal);
+            Vector3 projectedMove = ProjectedMove(_inputVector,groundNormal);
+            
+            // Rotate the player according to look or move direction
+            if (_directionInputVector.magnitude < 0.01f){ // auto
+                if (projectedMove.magnitude > 0.01f)
+                {
+                    _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
+                    transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
+                        RotationSpeed * Time.fixedDeltaTime);
+                }
+            } else { //manual
+                Vector3 projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
+                _targetRotation = Quaternion.LookRotation(projectedDirection, groundNormal);
+                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
+                    RotationSpeed * Time.fixedDeltaTime * ManualRotationMultiplier);
+            }
+            
             if (Player.Instance.CanMove(projectedMove) && _inputVector.magnitude > 0.01f)
             {
                 // Rotate the player according to normal
-                _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
-                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
-
                 _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                 Debug.DrawRay(_controller.transform.position, projectedMove, Color.green,5f);
                 ApplyRotation();
-
-                if (projectedMove != Vector3.zero)
-                {
-                    _movementVelocity = Mathf.MoveTowards(_movementVelocity, walkingSpeed, acceleration * Time.fixedDeltaTime);
-                    Debug.Log("Movement velocity: " + _movementVelocity);
-                    var moveDirection = projectedMove * (_movementVelocity * Time.fixedDeltaTime);
-                    _controller.Move(moveDirection);
-                }
-                else
-                {
-                    _movementVelocity = 0.0f;
-                }
                 //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 
-            }
-            else
-            {
-                _movementVelocity = 0.0f;
+                var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+                if(moveDirection != Vector3.zero)
+                    _controller.Move(moveDirection);
+                
             }
             ApplyTouchGrounded();
 
@@ -115,17 +124,17 @@ namespace Player.ControlModules
             
         }
 
-        private Vector3 ProjectedMove(Vector3 groundNormal)
+        private Vector3 ProjectedMove(Vector3 input, Vector3 groundNormal)
         {
             Vector3 projectedMove;
             if (Math.Abs(groundNormal.y) < 0.01f) // Climbing branch
             {
-                projectedMove = GetClimbingMove(_inputVector, groundNormal);
+                projectedMove = GetClimbingMove(input, groundNormal);
 
             }else
             {
                 // Plane and slope branch
-                var horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
+                var horizontalMove = new Vector3(input.x, 0, input.y).normalized;
                 projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
             }
 
@@ -186,26 +195,15 @@ namespace Player.ControlModules
             var move = inputMap[bestIndex];
             return Vector3.ProjectOnPlane(move.normalized, normal);
         }
-
-        private Vector3 GetMovement(Vector3 groundNormal)
-        {
-            Vector3 horizontalMove = Vector3.zero;
-            Vector3 projectedMove = Vector3.zero;
-            if (Math.Abs(groundNormal.y) < 0.01f){
-                projectedMove = new Vector3(0, -_inputVector.x, _inputVector.y).normalized;
-            }else{
-                horizontalMove = new Vector3(_inputVector.x, 0, _inputVector.y).normalized;
-                projectedMove = Vector3.ProjectOnPlane(horizontalMove, groundNormal).normalized;
-            }
-            var move = projectedMove * (walkingSpeed * Time.fixedDeltaTime);
-            return move;
-        }
+        
         private void ApplyRotation()
         {
             PhysicsModule physicsModule = Player.Instance.PhysicsModule;
             if (physicsModule)
             {
-                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
+                //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
+
+                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, RotationSpeedOnSlope * Time.fixedDeltaTime);
                 if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
                     physicsModule.OnRotatingEnd();
             }
@@ -214,14 +212,14 @@ namespace Player.ControlModules
 
         private void ApplyTouchGrounded()
         {
-            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * gravity);
+            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
             _controller.Move(attach * Time.fixedDeltaTime);
             //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
 
         }
         private void ApplyGravity()
         {
-            _verticalVelocity += gravity * Time.fixedDeltaTime;
+            _verticalVelocity += Gravity * Time.fixedDeltaTime;
             Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
             _controller.Move(fall * Time.fixedDeltaTime);
         }
