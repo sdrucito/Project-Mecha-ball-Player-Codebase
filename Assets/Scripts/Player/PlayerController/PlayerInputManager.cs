@@ -72,7 +72,9 @@ namespace Player.PlayerController
             {
                 OnSprintImpulseInput?.Invoke(inputCameraRelative);
             }
-            OnLookInput?.Invoke(_currentDirectionInput);
+            
+            var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle);
+            OnLookInput?.Invoke(rotationCameraRelative);
         }
         
         private Vector2 RotateInput(Vector2 input, float angleDegrees)
