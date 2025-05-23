@@ -36,7 +36,6 @@ namespace Player
 
         private void Start()
         {
-        
             InitializePlayer();
         }
 
@@ -69,7 +68,7 @@ namespace Player
         {
             return _physicsModule.CanMove(movement);
         }
-
+        
         public Vector3 GetGroundNormal()
         {
             return _physicsModule.GetGroundNormal();

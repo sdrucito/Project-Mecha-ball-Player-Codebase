@@ -9,14 +9,16 @@ using Vector3 = UnityEngine.Vector3;
 
 namespace Player.ControlModules
 {
-    public class WalkingModule : ControlModule
+    public class WalkingModule : ControlModule, IFixedUpdateObserver
     {
+        public int FixedUpdatePriority { get; set; }
+
+        
         [SerializeField] private float WalkingSpeed = 5f;
         [SerializeField] private float Gravity = -9.8f;
         [SerializeField] private float RotationSpeedOnSlope = 80f;
         [SerializeField] private float RotationSpeed = 40f;
         [SerializeField] private float ManualRotationMultiplier = 2f;
-
         private float _verticalVelocity=0;
 
         private CharacterController _controller;
@@ -27,20 +29,31 @@ namespace Player.ControlModules
         [SerializeField] private PlayerKneeWalkAnimator playerWalkAnimator;
         
         private Quaternion _targetRotation = Quaternion.identity;
+
+        private Vector3 _lastFixedMovementDelta;
+        private Vector3 _lastFixedMovementApplied;
+        private Vector3 _lastPosition;
+
+        private bool _wasBlocked = false;
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Awake()
         {
             name = "Walk";
+            FixedUpdatePriority = 0;
         }
 
         private void Start()
         {
             _controller = Player.Instance.CharacterController;
             playerWalkAnimator.OnOpenFinished += OpenFinished;
+            _lastPosition = Player.Instance.Rigidbody.position;
+            _lastFixedMovementApplied = Vector3.zero;
+            _lastFixedMovementDelta = Vector3.zero;
         }
 
         private void OnEnable()
         {
+            FixedUpdateManager.Instance.Register(this);
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
@@ -53,6 +66,7 @@ namespace Player.ControlModules
 
         private void OnDisable()
         {
+            FixedUpdateManager.Instance?.Unregister(this);
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
@@ -65,6 +79,10 @@ namespace Player.ControlModules
         {
             if(_controller)
                 _controller.enabled = true;
+            
+            // Reset movement delta
+            _lastFixedMovementDelta = Vector3.zero;
+            _lastPosition = Player.Instance.Rigidbody.position;
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;
@@ -76,9 +94,34 @@ namespace Player.ControlModules
         }
         
         // Update is called once per frame
-        void FixedUpdate()
+        public void ObservedFixedUpdate()
         {
+            // Send to leg animator the difference of movement delta
+            _lastFixedMovementDelta = Player.Instance.Rigidbody.position - _lastPosition;
+            Vector3 movementDifference = _lastFixedMovementDelta - _lastFixedMovementApplied;
+            
+            _lastPosition = Player.Instance.Rigidbody.position;
+   
+            playerWalkAnimator.FollowUserMovement(movementDifference);
+            playerWalkAnimator.MovementDelta = _lastFixedMovementApplied;
+            
+            // Add to RaycastManager the movement applied for leg anticipation
+            Player.Instance.RaycastManager.MovementDelta = GetPredictedMovement();
+            // Fire ground check after input applied
+            playerWalkAnimator.ExecuteGrounded();
+            
+            // Reset last fixed movement applied
+            _lastFixedMovementApplied = Vector3.zero;
+            
+            // Execute movement function
             ExecuteMovement();
+        }
+
+        private Vector3 GetPredictedMovement()
+        {
+            Vector3 groundNormal = Player.Instance.GetGroundNormal();
+            Vector3 projectedMove = ProjectedMove(_inputVector,groundNormal);
+            return projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
         }
 
         #region Movement Logic
@@ -87,41 +130,53 @@ namespace Player.ControlModules
             Vector3 groundNormal = Player.Instance.GetGroundNormal();
             Vector3 projectedMove = ProjectedMove(_inputVector,groundNormal);
             
-            // Rotate the player according to look or move direction
-            if (_directionInputVector.magnitude < 0.01f){ // auto
-                if (projectedMove.magnitude > 0.01f)
-                {
-                    _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
-                    transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
-                        RotationSpeed * Time.fixedDeltaTime);
-                }
-            } else { //manual
-                Vector3 projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
-                _targetRotation = Quaternion.LookRotation(projectedDirection, groundNormal);
-                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
-                    RotationSpeed * Time.fixedDeltaTime * ManualRotationMultiplier);
-            }
             
-            if (Player.Instance.CanMove(projectedMove) && _inputVector.magnitude > 0.01f)
+            if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
-                // Rotate the player according to normal
-                _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
-                Debug.DrawRay(_controller.transform.position, projectedMove, Color.green,5f);
-                ApplyRotation();
-                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+                if(_inputVector.magnitude > 0.01f)
+                {
+                    // Rotate the player according to look or move direction only if it can move
+                    if (_directionInputVector.magnitude < 0.01f){ // auto
+                        if (projectedMove.magnitude > 0.01f)
+                        {
+                            _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
+                            transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
+                                RotationSpeed * Time.fixedDeltaTime);
+                        }
+                    } else { //manual
+                        Vector3 projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
+                        _targetRotation = Quaternion.LookRotation(projectedDirection, groundNormal);
+                        transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
+                            RotationSpeed * Time.fixedDeltaTime * ManualRotationMultiplier);
+                    }
+                    // Rotate the player according to normal
+                    _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
+                    ApplyRotation();
+                    //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
                 
-                var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
-                if(moveDirection != Vector3.zero)
-                    _controller.Move(moveDirection);
+                    var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+                    if(moveDirection != Vector3.zero)
+                        _controller.Move(moveDirection);
                 
+                    // Update the last movement applied by the user
+                    _lastFixedMovementApplied = moveDirection;
+                }
+                
+
+            }
+            else
+            {
+                if(_wasBlocked)
+                    _wasBlocked = false;
+                else
+                    _wasBlocked = true;
             }
             ApplyTouchGrounded();
-
-                if (!Player.Instance.IsGrounded())
-                {
-                    ApplyGravity();
-                } 
-            }
+         
+            if (!Player.Instance.IsGrounded())
+            {
+                ApplyGravity();
+            } 
             
             
         }

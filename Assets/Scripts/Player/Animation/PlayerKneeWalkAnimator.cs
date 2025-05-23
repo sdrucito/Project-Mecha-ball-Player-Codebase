@@ -14,9 +14,11 @@ namespace Player.Animation
 /*
  * Component that manages the procedural animation for the player movement
  */
-    public class PlayerKneeWalkAnimator : MonoBehaviour
+    public class PlayerKneeWalkAnimator : MonoBehaviour, IFixedUpdateObserver
     {
 
+        public int FixedUpdatePriority { get; set; }
+        
         [SerializeField, Range(0,3)] private float f;
         [SerializeField, Range(0,3)] private float z;
         [SerializeField, Range(0,3)] private float r;
@@ -61,9 +63,17 @@ namespace Player.Animation
     
         private StepGroup _currentGroup = StepGroup.Idle;
         private bool _wasMoving = false;
+        private bool _wasGrounded = false;
         private Vector3 _lastPosition;
-
         public Action OnOpenFinished;
+
+        public Vector3 MovementDelta {get; set;}
+        
+        private void Awake()
+        {
+            FixedUpdatePriority = 1;
+        }
+
         void Start()
         {
 
@@ -99,6 +109,7 @@ namespace Player.Animation
 
         private bool VerifyMove()
         {
+            /*
             if ((transform.position - _lastPosition).magnitude < 0.01f)
             {
                 _lastPosition = transform.position;
@@ -107,7 +118,15 @@ namespace Player.Animation
         
             _lastPosition = transform.position;
             return true;
+            */
             
+            if (MovementDelta.magnitude < 0.01f)
+            {
+                return false;
+            }
+
+            return true;
+
         }
 
         private void InitializeLegs()
@@ -115,72 +134,23 @@ namespace Player.Animation
             ReturnLegToIdle();
             MoveLegs(StepGroup.Idle); 
         }
-/*
-        void FixedUpdate()
-        {
-            bool isMoving   = VerifyMove();
-            bool isGrounded = Player.Instance.IsGrounded();
-            Debug.Log("IsGrounded: " + isGrounded);
 
-            // 1) Opening / floating / idle all just snap home
-            if (_currentGroup == StepGroup.Opening || !isGrounded || (!isMoving && _currentGroup != StepGroup.Idle))
-            {
-                if (_currentGroup != StepGroup.Idle)
-                    ReturnLegToIdle();
-                _currentGroup = StepGroup.Idle;
-                MoveLegs(StepGroup.Idle);
-                _wasMoving = false;
-                return;
-            }
-
-            // 1b) Don’t start your very first step until we’ve done at least one grounded pass
-            if (_justFinishedOpening)
-            {
-                // run your raycasts so every leg.NewPosition is set
-                VerifyGroundedForGroup(StepGroup.GroupA);
-                VerifyGroundedForGroup(StepGroup.GroupB);
-                _justFinishedOpening = false;
-                return;
-            }
-
-            // 2) Normal walking
-            if (isMoving && !_wasMoving)
-            {
-                _currentGroup = StepGroup.GroupA;
-                StartStepForGroup(_currentGroup);
-            }
-            else if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(_currentGroup))
-            {
-                _currentGroup = StepGroup.GroupB;
-                StartStepForGroup(_currentGroup);
-            }
-            else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(_currentGroup))
-            {
-                _currentGroup = StepGroup.GroupA;
-                StartStepForGroup(_currentGroup);
-            }
-
-            MoveLegs(_currentGroup);
-            _wasMoving = isMoving;
-        }
-        */
-
-        void FixedUpdate()
+        public void ObservedFixedUpdate() 
         {
             if (_currentGroup != StepGroup.Opening)
             {
-                //Debug.Log("CurrentGroup: " + _currentGroup);
+                Debug.Log("CurrentGroup: " + _currentGroup);
                 // Call the update for each leg and set the new IK position
-                ExecuteGrounded();
+                //ExecuteGrounded();
 
                 bool isMoving = VerifyMove();
                 bool isGrounded = Player.Instance.IsGrounded();
                 
-                if (!isGrounded)
+                if (!isGrounded && !_wasGrounded)
                 {
                     _currentGroup = StepGroup.Floating;
                 }else
-                if (IsStopped(isMoving))
+                if (IsStopped(isMoving) || _currentGroup == StepGroup.Floating)
                 {
                     _currentGroup = StepGroup.Idle;
                     ReturnLegToIdle();
@@ -208,7 +178,7 @@ namespace Player.Animation
                 MoveLegs(_currentGroup);
 
                 _wasMoving = isMoving;
-        
+                _wasGrounded = isGrounded;
                 if (Player.Instance.RaycastManager)
                 {
                     Player.Instance.RaycastManager.SetLegs(_legs);
@@ -220,7 +190,7 @@ namespace Player.Animation
             
         }
 
-        private void ExecuteGrounded()
+        public void ExecuteGrounded()
         {
             Player.Instance.RaycastManager.FlushRaycasts();
             VerifyGroundedForGroup(StepGroup.GroupA);
@@ -305,7 +275,15 @@ namespace Player.Animation
             }
 
         }
-        void MoveLegStep(LegAnimator legAnimator)
+        /*
+         * Function that manages the movement of a leg. A leg can move in three different way:
+         * -Execute a step
+         * -Remain in place
+         * -Follow the user's movement
+         * To make a leg follow the user's movement we add an independent movement value that is
+         * applied whenever the player is moving but the movement is not result of an input
+         */
+        private void MoveLegStep(LegAnimator legAnimator)
         {
             if (legAnimator.NewPosition == Vector3.zero)
                  legAnimator.NewPosition = legAnimator.OldPosition;
@@ -338,6 +316,16 @@ namespace Player.Animation
             }
 
         
+        }
+
+        public void FollowUserMovement(Vector3 movement)
+        {
+            foreach (var leg in _legs)
+            {
+                leg.Transform.position += movement;
+                leg.OldPosition += movement;
+                leg.NewPosition += movement;
+            }
         }
 
         private Vector3 GetFootHeight()
@@ -399,18 +387,13 @@ namespace Player.Animation
                 for (int i = 0; i < leg.Count; i++)
                 {
                     raycastManager.ExecuteGroundedForLeg(leg[i]);
-                    if (!raycastManager.IsLegGrounded(leg[i].Name))
-                    {
-                        // Try to raycast for over-slope
-                        raycastManager.ExecuteGroundedForOverLimitSlope(leg[i]);
-                        
-                    }
                 }
             }
         }
 
         private void OnEnable()
         {
+            FixedUpdateManager.Instance.Register(this);
             Debug.Log("Enabling Walk Animator");
             Player.Instance.RaycastManager.enabled = true;
             Player.Instance.RaycastManager.ResetMovementDelta();
@@ -427,7 +410,7 @@ namespace Player.Animation
         {
             Player.Instance.RaycastManager.enabled = false;
             legRig.weight = 0.0f;
-            
+            FixedUpdateManager.Instance?.Unregister(this);
         }
     
         private IEnumerator DelaySetWeight()

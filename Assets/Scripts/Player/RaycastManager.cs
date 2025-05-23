@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Player.Animation;
 using UnityEngine;
+using UnityEngine.Serialization;
 
-public class RaycastManager : MonoBehaviour
+public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
 {
+    public int FixedUpdatePriority { get; set; }
 
     [SerializeField] private float stepLength = 5.0f;
     [SerializeField] private float jumpHeight = 2f;
@@ -18,12 +20,13 @@ public class RaycastManager : MonoBehaviour
     private List<LegAnimator> _legs = new List<LegAnimator>();
     
     private Vector3 _lastRootPos;
-    private Vector3 _movementDelta;
+    public Vector3 MovementDelta {get; set;}
     private Quaternion _lastRotation;
     private Quaternion _rotationDelta;
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
+        FixedUpdatePriority = 1;
     }
 
     private void Start()
@@ -37,7 +40,7 @@ public class RaycastManager : MonoBehaviour
      */
     public void ResetMovementDelta()
     {
-        _movementDelta = Vector3.zero;
+        MovementDelta = Vector3.zero;
         _lastRootPos = _rigidbody.position;
     }
 
@@ -45,16 +48,21 @@ public class RaycastManager : MonoBehaviour
      * Computes, when active, the movement captured between the last FixedUpdate
      * It is used by all components that need to know the instantaneous velocity
      */
-    void FixedUpdate()
+    public void ObservedFixedUpdate()
     {
-        _movementDelta = _rigidbody.position - _lastRootPos;
+        /*
+        MovementDelta = _rigidbody.position - _lastRootPos;
         _rotationDelta = _rigidbody.rotation * Quaternion.Inverse(_lastRotation);
 
         _lastRotation = _rigidbody.rotation;
         _lastRootPos = _rigidbody.position;
         // Clamp movement delta to avoid strange behaviors
-        _movementDelta = Vector3.ClampMagnitude(_movementDelta, maxMovementMagnitude);
+        MovementDelta = Vector3.ClampMagnitude(MovementDelta, maxMovementMagnitude);
+        */
     }
+
+   
+   
 
 
     public bool IsLegGrounded(string legName)
@@ -81,42 +89,7 @@ public class RaycastManager : MonoBehaviour
         
     }
     
-    public void ExecuteGroundedForOverLimitSlope(LegAnimator leg)
-    {
-        // 1. origin of the ray
-        Vector3 worldOrigin    = ComputeLegPositionForOverSlope(leg);
-        Vector3 bodyCenter     = _rigidbody.transform.position;
-    
-        // 2. pure downward direction
-        Vector3 downDir        = -_rigidbody.transform.up;
-    
-        // 3. horizontal “side” direction from body center to leg
-        Vector3 sideDir = (bodyCenter   - worldOrigin);
-        sideDir.y              = 0;               // flatten to horizontal
-        if (sideDir.sqrMagnitude < 1e-6f)
-            sideDir = _rigidbody.transform.right; // fallback if leg is exactly under center
-        sideDir.Normalize();
-    
-        // 4. mix them at 45°: rotate 'downDir' toward 'sideDir' by 45° (in radians)
-        float   angleRad       = 45f * Mathf.Deg2Rad;
-        Vector3 tiltedDir      = Vector3.RotateTowards(downDir, sideDir, angleRad, 0f).normalized;
-        Debug.DrawRay(
-            worldOrigin,
-            tiltedDir * jumpHeight,
-            Color.red,
-            /* duration */ 0.1f,
-            /* depthTest */ true
-        );
-        // 5. cast the ray
-        Ray       ray           = new Ray(worldOrigin, tiltedDir);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, jumpHeight*2, LayerMask.GetMask(terrainLayer)))
-        {
-            _hitList.TryAdd(leg.Name, hit);
-        }
-    }
-    
-    /*
+  /*
      * Function that verifies if the player can move basing on the anticipation for leg
      * It calculates, for a leg, the next position in the step and triggers the step movement
      */
@@ -254,7 +227,7 @@ public class RaycastManager : MonoBehaviour
         Quaternion bodyRot = reference.rotation;
         Vector3 fullOffset = bodyRot * leg.RelativePosition;
         // Linear movement anticipation
-        Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
+        Vector3 anticipation = new Vector3(MovementDelta.x, MovementDelta.y, MovementDelta.z) * stepAnticipationMultiplier;
         
         // Rotation anticipation
         Vector3 rotatedOffset = _rotationDelta * fullOffset;
@@ -267,23 +240,7 @@ public class RaycastManager : MonoBehaviour
         //Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
         return worldOrigin;
     }
-    
-    private Vector3 ComputeLegPositionForOverSlope(LegAnimator leg)
-    {
-        
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier * 1.5f; // Add more anticipation
-        //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset 
-                              + anticipation;
-        Debug.DrawLine(reference.position, worldOrigin, Color.green);
-        return worldOrigin;
-    }
-    
+
     
     /*
      * Clears the last FixedUpdate frame hit list, preparing the logic
@@ -297,7 +254,7 @@ public class RaycastManager : MonoBehaviour
     
     public Vector3 GetMovementDelta()
     {
-        return _movementDelta;
+        return MovementDelta;
     }
 
     public List<RaycastHit> GetHitList()
@@ -340,33 +297,16 @@ public class RaycastManager : MonoBehaviour
         }
     }
     
-    /*
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        foreach (var leg in _legs)
-        {
-         
-            Vector3 origin = ComputeLegPositionForStep(leg);
-            Vector3 direction = -_rigidbody.transform.up.normalized;
 
-            // Draw full test ray
-            Gizmos.DrawLine(origin, origin + direction * jumpHeight);
-            // Draw every test ray in Play mode
-            Debug.DrawRay(origin, direction * jumpHeight, Color.yellow);
-            // Show hit point
-            if (Physics.Raycast(origin, direction, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-            {
-                Gizmos.color = Color.red;
-                Gizmos.DrawLine(origin, hit.point);
-                Gizmos.DrawSphere(hit.point, 0.15f);
-                Gizmos.color = Color.yellow;  // reset for next leg
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawSphere(leg.NewPosition, 0.10f);
-            }
-        }
-    }*/
-  
-    
-    
+
+    private void OnEnable()
+    {
+        FixedUpdateManager.Instance.Register(this);
+    }
+
+    private void OnDisable()
+    {
+        FixedUpdateManager.Instance?.Unregister(this);
+        
+    }
 }

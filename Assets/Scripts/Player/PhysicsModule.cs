@@ -77,12 +77,12 @@ namespace Player
         
         public bool CanMove(Vector3 movement)
         {
-            //Debug.DrawLine(Player.Instance.Rigidbody.position, Player.Instance.Rigidbody.position + movement*50.0f, Color.green);
+            if(!_isGrounded) return false;
             if (movement.magnitude > 0.0f)
             {
                 RaycastManager raycastManager = Player.Instance.RaycastManager;
                 List<RaycastHit> hits = raycastManager.GetHitList();
-                float maxCorrelation = 0.5f;
+                float minCorrelation = 0.65f;
                 float sumCorrelation = 0.0f;
                 foreach (var hit in hits)
                 {
@@ -93,8 +93,8 @@ namespace Player
                     }
                     
                 }
-                //Debug.Log("Computed correlation: " + correlation);
-                if (sumCorrelation > maxCorrelation)
+                //Debug.Log("Computed correlation: " + sumCorrelation);
+                if (sumCorrelation > minCorrelation)
                 {
                     return true;
                 }
@@ -332,6 +332,7 @@ namespace Player
          * Function that estimates the probability that the player is moving
          * toward a point given its instant velocity
          */
+        /*
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
             
@@ -343,6 +344,18 @@ namespace Player
             velLocal.y = 0f;
 
             return Vector3.Dot(toPointLocal.normalized, velLocal.normalized);
+        }*/
+        
+        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
+        {
+            
+            Vector3 toPointWorld = point - transform.position;
+            toPointWorld = new Vector3(toPointWorld.x, 0f, toPointWorld.z).normalized;
+
+            Vector3 velWorld = new Vector3(velocity.x, 0f, velocity.z).normalized;
+            float corr = Vector3.Dot(toPointWorld, velWorld);
+            return corr;
         }
+        
     }
 }
