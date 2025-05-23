@@ -13,6 +13,7 @@ namespace Player.ControlModules
     {
         protected const string Name = "None";
         public Action OnActivated;
+        public bool IsActive {get; set;} = true;
         public string GetName()
         {
             return Name;

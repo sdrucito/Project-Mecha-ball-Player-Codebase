@@ -19,7 +19,6 @@ namespace Player
 
         [field: SerializeField] public PhysicsModule PhysicsModule { get; private set; }
 
-
         private void Awake()
         {
             if (Instance == null)
@@ -74,6 +73,14 @@ namespace Player
         public Vector3 GetGroundNormal()
         {
             return _physicsModule.GetGroundNormal();
+        }
+
+        public void SetMovementEnabled(bool movementEnabled)
+        {
+            //ControlModuleManager.SetModuleEnabled(movementEnabled);
+            ControlModuleManager.GetModule(ControlModuleManager.GetActiveModuleName()).IsActive = movementEnabled;
+            PlayerInputManager.Instance.SetInputEnabled(movementEnabled);
+            CharacterController.enabled = movementEnabled;
         }
 
         

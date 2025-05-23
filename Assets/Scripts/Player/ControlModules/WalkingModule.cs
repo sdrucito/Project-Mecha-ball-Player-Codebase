@@ -53,7 +53,6 @@ namespace Player.ControlModules
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
                 playerWalkAnimator.enabled = false;
-
             }
 
         }
@@ -76,42 +75,46 @@ namespace Player.ControlModules
         #region Movement Logic
         private void ExecuteMovement()
         {
-            Vector3 groundNormal = Player.Instance.GetGroundNormal();
-            Vector3 projectedMove = ProjectedMove(groundNormal);
-            if (Player.Instance.CanMove(projectedMove) && _inputVector.magnitude > 0.01f)
+            if (IsActive)
             {
-                // Rotate the player according to normal
-                _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
-                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
-
-                _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
-                Debug.DrawRay(_controller.transform.position, projectedMove, Color.green,5f);
-                ApplyRotation();
-
-                if (projectedMove != Vector3.zero)
+                Vector3 groundNormal = Player.Instance.GetGroundNormal();
+                Vector3 projectedMove = ProjectedMove(groundNormal);
+                if (Player.Instance.CanMove(projectedMove) && _inputVector.magnitude > 0.01f)
                 {
-                    _movementVelocity = Mathf.MoveTowards(_movementVelocity, walkingSpeed, acceleration * Time.fixedDeltaTime);
-                    Debug.Log("Movement velocity: " + _movementVelocity);
-                    var moveDirection = projectedMove * (_movementVelocity * Time.fixedDeltaTime);
-                    _controller.Move(moveDirection);
+                    // Rotate the player according to normal
+                    _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
+                    transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, rotationSpeed * Time.fixedDeltaTime);
+
+                    _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
+                    Debug.DrawRay(_controller.transform.position, projectedMove, Color.green,5f);
+                    ApplyRotation();
+
+                    if (projectedMove != Vector3.zero)
+                    {
+                        _movementVelocity = Mathf.MoveTowards(_movementVelocity, walkingSpeed, acceleration * Time.fixedDeltaTime);
+                        Debug.Log("Movement velocity: " + _movementVelocity);
+                        var moveDirection = projectedMove * (_movementVelocity * Time.fixedDeltaTime);
+                        _controller.Move(moveDirection);
+                    }
+                    else
+                    {
+                        _movementVelocity = 0.0f;
+                    }
+                    //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+                
                 }
                 else
                 {
                     _movementVelocity = 0.0f;
                 }
-                //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
-                
-            }
-            else
-            {
-                _movementVelocity = 0.0f;
-            }
-            ApplyTouchGrounded();
+                ApplyTouchGrounded();
 
-            if (!Player.Instance.IsGrounded())
-            {
-                ApplyGravity();
+                if (!Player.Instance.IsGrounded())
+                {
+                    ApplyGravity();
+                } 
             }
+            
             
         }
 

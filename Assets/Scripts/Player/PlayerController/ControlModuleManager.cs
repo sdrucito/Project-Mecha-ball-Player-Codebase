@@ -68,6 +68,11 @@ namespace Player.PlayerController
             }
         }
 
+        public void SetModuleEnabled(bool moduleEnabled)
+        {
+            _modules[_actualModule].enabled = moduleEnabled;
+        }
+
         public void ActivateNextModule()
         {
             ActivateModule();

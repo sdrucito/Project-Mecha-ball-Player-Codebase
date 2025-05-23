@@ -82,6 +82,21 @@ namespace Player.PlayerController
         #endregion
 
         #region Public Methods
+
+        public void SetInputEnabled(bool inputEnabled)
+        {
+            if (inputEnabled)
+            {
+                //_playerInput.ActivateInput();
+                _playerInput.actions.FindActionMap("Player", true).Enable();
+            }
+            else
+            {
+                _playerInput.actions.FindActionMap("Player", true).Disable();
+                //_playerInput.DeactivateInput();
+            }
+        }
+        
         public void SetActionEnabled(string actionName, bool enabled)
         {
             var action = _playerInput.actions.FindAction(actionName);
