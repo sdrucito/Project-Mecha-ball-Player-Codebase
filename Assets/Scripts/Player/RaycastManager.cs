@@ -19,21 +19,15 @@ public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
     private readonly Dictionary<string, RaycastHit> _hitList = new Dictionary<string, RaycastHit>();
     private List<LegAnimator> _legs = new List<LegAnimator>();
     
-    private Vector3 _lastRootPos;
     public Vector3 MovementDelta {get; set;}
-    private Quaternion _lastRotation;
-    private Quaternion _rotationDelta;
+    public Quaternion RotationDelta {get; set;}
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
         FixedUpdatePriority = 1;
     }
 
-    private void Start()
-    {
-        _lastRootPos = _rigidbody.position;
-        _lastRotation = _rigidbody.rotation;
-    }
+
 
     /*
      * When enabled, reset the movement delta
@@ -41,7 +35,7 @@ public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
     public void ResetMovementDelta()
     {
         MovementDelta = Vector3.zero;
-        _lastRootPos = _rigidbody.position;
+        RotationDelta = Quaternion.identity;
     }
 
     /*
@@ -105,6 +99,8 @@ public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
         // Verify if the hit distance is greater than the step length
         if (res)
         {
+            Debug.DrawLine(leg.NewPosition, hit.point, Color.blue);
+
             if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
             {
                 leg.Lerp = 0;
@@ -121,31 +117,6 @@ public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
         
     }
     
-    
-    /*
-     *
-     public void ExecuteStepForLeg(LegAnimator leg)
-    {
-
-        //Vector3 relativePos = pivot + horizontalOffset + anticipation;
-        //relativePos.y = _rigidbody.position.y;
-        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-        {
-            // Verify if the hit distance is greater than the step length
-            if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
-            {
-                leg.Lerp = 0;
-                leg.OldPosition  = leg.NewPosition;
-                leg.NewPosition = hit.point;
-            }
-        }
-            
-           
-    }
-     */
     
     /*
      * Function that calculates the Idle position for a leg (using raycasts) and triggers
@@ -172,28 +143,6 @@ public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
             }
         }
     }
-    
-    /*
-    public void ExecuteResetPosition(LegAnimator leg)
-    {
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset;
-        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        RaycastHit hit;
-        bool res = _hitList.TryGetValue(leg.Name, out hit);
-        if (res)
-        {
-            leg.Transform.position = hit.point;
-            leg.OldPosition = hit.point;
-            leg.NewPosition = hit.point;
-            leg.Lerp = 1f;
-        }
-    }
-    */
     
     /*
      * Function that calculates the position of legs after a reset of the walking animator and resets it
@@ -229,14 +178,16 @@ public class RaycastManager : MonoBehaviour, IFixedUpdateObserver
         // Linear movement anticipation
         Vector3 anticipation = new Vector3(MovementDelta.x, MovementDelta.y, MovementDelta.z) * stepAnticipationMultiplier;
         
+        
         // Rotation anticipation
-        Vector3 rotatedOffset = _rotationDelta * fullOffset;
+        Vector3 rotatedOffset = RotationDelta * fullOffset;
         Vector3 rotationalAnt = (rotatedOffset - fullOffset) * rotAnticipationMultiplier;
 
         //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
         Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset 
-                              + anticipation + rotationalAnt;
+                              + fullOffset + rotationalAnt;
+        Debug.DrawLine(worldOrigin, worldOrigin + anticipation, Color.red);
+        worldOrigin += anticipation;
         //Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
         return worldOrigin;
     }

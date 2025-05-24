@@ -34,6 +34,9 @@ namespace Player.ControlModules
         private Vector3 _lastFixedMovementApplied;
         private Vector3 _lastPosition;
 
+        private Quaternion _lastFixedRotationDelta;
+        private Quaternion _lastFixedRotationApplied;
+        private Quaternion _lastRotation;
         private bool _wasBlocked = false;
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Awake()
@@ -49,6 +52,8 @@ namespace Player.ControlModules
             _lastPosition = Player.Instance.Rigidbody.position;
             _lastFixedMovementApplied = Vector3.zero;
             _lastFixedMovementDelta = Vector3.zero;
+            _lastFixedRotationDelta = Quaternion.identity;
+            _lastFixedRotationApplied = Quaternion.identity;
         }
 
         private void OnEnable()
@@ -97,24 +102,68 @@ namespace Player.ControlModules
         public void ObservedFixedUpdate()
         {
             // Send to leg animator the difference of movement delta
-            _lastFixedMovementDelta = Player.Instance.Rigidbody.position - _lastPosition;
-            Vector3 movementDifference = _lastFixedMovementDelta - _lastFixedMovementApplied;
+            ApplyWorldMovementToPlayer();
             
-            _lastPosition = Player.Instance.Rigidbody.position;
-   
-            playerWalkAnimator.FollowUserMovement(movementDifference);
-            playerWalkAnimator.MovementDelta = _lastFixedMovementApplied;
-            
+            // Compute world rotation and apply difference of user rotation
+            ApplyWorldRotationToPlayer();
             // Add to RaycastManager the movement applied for leg anticipation
             Player.Instance.RaycastManager.MovementDelta = GetPredictedMovement();
+            // Add to RaycastManager the rotation applied for leg anticipation
+            Player.Instance.RaycastManager.RotationDelta = GetPredictedRotation();
             // Fire ground check after input applied
             playerWalkAnimator.ExecuteGrounded();
             
             // Reset last fixed movement applied
             _lastFixedMovementApplied = Vector3.zero;
             
+            // Reset last fixed rotation applied
+            _lastFixedRotationApplied = Quaternion.identity;
+            
             // Execute movement function
             ExecuteMovement();
+            
+            // Verify the input movement is effectively moving the player
+            if (_lastFixedMovementDelta.magnitude < 0.01f)
+            {
+                // Flush the input movement if the player isn't moving
+                _lastFixedMovementApplied = Vector3.zero;
+            }
+            // The same goes for the rotation
+            if (_lastFixedRotationApplied == Quaternion.identity)
+            {
+                // Flush the input movement if the player isn't moving
+                _lastFixedRotationApplied = Quaternion.identity;
+            }
+            
+            // Update the movement delta for both the walk animator and raycast manager
+            playerWalkAnimator.MovementDelta = _lastFixedMovementApplied;
+            playerWalkAnimator.RotationDelta = _lastFixedRotationApplied;
+            // If I can't walk, flush the movement delta in the raycast manager
+            Player.Instance.RaycastManager.MovementDelta = _lastFixedMovementApplied;
+            Player.Instance.RaycastManager.RotationDelta = _lastFixedRotationApplied;
+
+            // Re-execute ground check after movement and rotation delta applied
+            playerWalkAnimator.ExecuteGrounded();
+            ApplyGravity();
+
+        }
+
+        private void ApplyWorldRotationToPlayer()
+        {
+            _lastFixedRotationDelta = Player.Instance.Rigidbody.rotation * Quaternion.Inverse(_lastRotation);
+            Quaternion rotationDifference = _lastFixedRotationDelta * Quaternion.Inverse(_lastFixedRotationApplied);
+            _lastRotation = Player.Instance.Rigidbody.rotation;
+            playerWalkAnimator.FollowUserRotation(rotationDifference);
+        }
+
+        private void ApplyWorldMovementToPlayer()
+        {
+            _lastFixedMovementDelta = Player.Instance.Rigidbody.position - _lastPosition;
+            Vector3 movementDifference = _lastFixedMovementDelta - _lastFixedMovementApplied;
+            
+            _lastPosition = Player.Instance.Rigidbody.position;
+   
+            playerWalkAnimator.FollowUserMovement(movementDifference);
         }
 
         private Vector3 GetPredictedMovement()
@@ -122,6 +171,36 @@ namespace Player.ControlModules
             Vector3 groundNormal = Player.Instance.GetGroundNormal();
             Vector3 projectedMove = ProjectedMove(_inputVector,groundNormal);
             return projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+        }
+
+        private Quaternion GetPredictedRotation()
+        {
+            Vector3 groundNormal = Player.Instance.GetGroundNormal();
+            Vector3 projectedMove = GetPredictedMovement();
+            // Rotate the player according to look or move direction only if it can move
+            if (_directionInputVector.magnitude < 0.01f){ // auto
+                if (projectedMove.magnitude > 0.01f)
+                {
+                    Quaternion target = Quaternion.LookRotation(projectedMove, groundNormal);
+                    
+                    float maxDegreesDelta = RotationSpeed * Time.fixedDeltaTime;
+                    Quaternion next = Quaternion.RotateTowards(_lastRotation, target, maxDegreesDelta);
+
+                    Quaternion delta = next * Quaternion.Inverse(_lastRotation);
+
+                    return delta;
+                }
+            } else { //manual
+                Vector3 projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
+                Quaternion target = Quaternion.LookRotation(projectedDirection, groundNormal);
+
+                float maxDegrees = RotationSpeed * Time.fixedDeltaTime * ManualRotationMultiplier;
+                Quaternion next = Quaternion.RotateTowards(_lastRotation, target, maxDegrees);
+
+                return next * Quaternion.Inverse(_lastRotation);
+                
+            }
+            return Quaternion.identity;
         }
 
         #region Movement Logic
@@ -149,6 +228,8 @@ namespace Player.ControlModules
                         transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
                             RotationSpeed * Time.fixedDeltaTime * ManualRotationMultiplier);
                     }
+                    // Re-call the prediction that now is "real"
+                    _lastFixedRotationApplied = GetPredictedRotation();
                     // Rotate the player according to normal
                     _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
                     ApplyRotation();
@@ -170,13 +251,11 @@ namespace Player.ControlModules
                     _wasBlocked = false;
                 else
                     _wasBlocked = true;
+                
             }
             ApplyTouchGrounded();
          
-            if (!Player.Instance.IsGrounded())
-            {
-                ApplyGravity();
-            } 
+           
             
             
         }
@@ -276,9 +355,12 @@ namespace Player.ControlModules
         }
         private void ApplyGravity()
         {
-            _verticalVelocity += Gravity * Time.fixedDeltaTime;
-            Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
-            _controller.Move(fall * Time.fixedDeltaTime);
+            if (!Player.Instance.IsGrounded())
+            {
+                _verticalVelocity += Gravity * Time.fixedDeltaTime;
+                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
+                _controller.Move(fall * Time.fixedDeltaTime);
+            } 
         }
         
         #endregion

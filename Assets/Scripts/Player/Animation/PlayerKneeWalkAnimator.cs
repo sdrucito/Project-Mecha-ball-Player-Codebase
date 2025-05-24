@@ -68,7 +68,7 @@ namespace Player.Animation
         public Action OnOpenFinished;
 
         public Vector3 MovementDelta {get; set;}
-        
+        public Quaternion RotationDelta {get; set;}
         private void Awake()
         {
             FixedUpdatePriority = 1;
@@ -141,6 +141,8 @@ namespace Player.Animation
             {
                 Debug.Log("CurrentGroup: " + _currentGroup);
                 // Call the update for each leg and set the new IK position
+                
+                // Re-compute the grounded when executing step, after having flushed the movement delta applied
                 //ExecuteGrounded();
 
                 bool isMoving = VerifyMove();
@@ -183,8 +185,6 @@ namespace Player.Animation
                 {
                     Player.Instance.RaycastManager.SetLegs(_legs);
                 }
-                //Debug.Log("Current group: " + _currentGroup);
-                //Debug.Log("Current grounded: " + Player.Instance.IsGrounded());
 
             }
             
@@ -206,7 +206,7 @@ namespace Player.Animation
         bool IsStopped(bool newMoving)
         {
             return !newMoving && _currentGroup != (StepGroup.Idle) && IsMovementGroupFinished(StepGroup.GroupA) &&
-                   IsMovementGroupFinished(StepGroup.GroupB);
+                   IsMovementGroupFinished(StepGroup.GroupB) && MovementDelta.magnitude < 0.01f && RotationDelta == Quaternion.identity;
         }
         void ReturnLegToIdle()
         {
@@ -325,6 +325,24 @@ namespace Player.Animation
                 leg.Transform.position += movement;
                 leg.OldPosition += movement;
                 leg.NewPosition += movement;
+            }
+        }
+        
+        public void FollowUserRotation(Quaternion deltaRot)
+        {
+
+            Vector3 pivot = Player.Instance.Rigidbody.position;
+
+            foreach (var leg in _legs)
+            {
+                Vector3 curOffset = leg.Transform.position - pivot;
+                leg.Transform.position = pivot + deltaRot * curOffset;
+
+                Vector3 oldOffset = leg.OldPosition - pivot;
+                leg.OldPosition = pivot + deltaRot * oldOffset;
+
+                Vector3 newOffset = leg.NewPosition - pivot;
+                leg.NewPosition = pivot + deltaRot * newOffset;
             }
         }
 

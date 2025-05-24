@@ -82,7 +82,7 @@ namespace Player
             {
                 RaycastManager raycastManager = Player.Instance.RaycastManager;
                 List<RaycastHit> hits = raycastManager.GetHitList();
-                float minCorrelation = 0.65f;
+                float minCorrelation = 1f;
                 float sumCorrelation = 0.0f;
                 foreach (var hit in hits)
                 {
@@ -93,7 +93,6 @@ namespace Player
                     }
                     
                 }
-                //Debug.Log("Computed correlation: " + sumCorrelation);
                 if (sumCorrelation > minCorrelation)
                 {
                     return true;
@@ -344,7 +343,7 @@ namespace Player
             velLocal.y = 0f;
 
             return Vector3.Dot(toPointLocal.normalized, velLocal.normalized);
-        }*/
+        }
         
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
@@ -355,6 +354,14 @@ namespace Player
             Vector3 velWorld = new Vector3(velocity.x, 0f, velocity.z).normalized;
             float corr = Vector3.Dot(toPointWorld, velWorld);
             return corr;
+        }
+        */
+        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
+        {
+            Vector3 toPointFlat = Vector3.ProjectOnPlane(point - transform.position, _groundNormal).normalized;
+            Vector3 velFlat = Vector3.ProjectOnPlane(velocity, _groundNormal).normalized;
+
+            return Vector3.Dot(toPointFlat, velFlat);
         }
         
     }
