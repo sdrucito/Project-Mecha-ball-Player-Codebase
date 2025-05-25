@@ -188,46 +188,52 @@ namespace Player.ControlModules
         #region Movement methods
         private void ExecuteMovement()
         {
-            Vector3 groundNormal = Player.Instance.GetGroundNormal();
-            Vector3 projectedMove = ProjectedMove(_inputVector,groundNormal);
+            var groundNormal = Player.Instance.GetGroundNormal();
+            var projectedMove = ProjectedMove(_inputVector,groundNormal);
             
             if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
-                    // Rotate the player according to look or move direction only if it can move
-                    if (_directionInputVector.magnitude < 0.01f){ // auto
-                        if (projectedMove.magnitude > 0.01f)
-                        {
-                            _targetRotation = Quaternion.LookRotation(projectedMove, groundNormal);
-                            transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
-                                RotationSpeed * Time.fixedDeltaTime);
-                        }
-                    } else { //manual
-                        Vector3 projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
-                        _targetRotation = Quaternion.LookRotation(projectedDirection, groundNormal);
-                        transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation,
-                            RotationSpeed * Time.fixedDeltaTime * ManualRotationMultiplier);
-                    }
-                    // Re-call the prediction that now is "real"
-                    _lastFixedRotationApplied = GetPredictedRotation();
-                    // Rotate the player according to normal
-                    _targetRotation = Quaternion.FromToRotation(transform.parent.up, groundNormal) * transform.parent.rotation;
-                    ApplyRotation();
-                    //Debug.DrawRay(transform.position, groundNormal, Color.red,3f);
+                Quaternion rotationAroundPlayer;
+                if (_directionInputVector.magnitude < 0.01f) // auto
+                {
+                    if (projectedMove.magnitude > 0.01f)
+                        rotationAroundPlayer = Quaternion.LookRotation(projectedMove, groundNormal);
+                    else
+                        rotationAroundPlayer = transform.parent.rotation;
+                }
+                else // manual
+                {
+                    var projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
+                    rotationAroundPlayer = Quaternion.LookRotation(projectedDirection, groundNormal);
+                }
                 
-                    var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
-                    if(moveDirection != Vector3.zero)
-                        _controller.Move(moveDirection);
+                var rotationSpeed = (_directionInputVector.magnitude < 0.01f) ? RotationSpeed : RotationSpeed * ManualRotationMultiplier;
+
+                transform.parent.rotation = Quaternion.RotateTowards(
+                    transform.parent.rotation,
+                    rotationAroundPlayer,
+                    rotationSpeed * Time.fixedDeltaTime
+                );
+                if (Player.Instance.PhysicsModule &&
+                    Quaternion.Angle(transform.parent.rotation, rotationAroundPlayer) < 0.01f)
+                {
+                    Player.Instance.PhysicsModule.OnRotatingEnd();
+                }
                 
-                    // Update the last movement applied by the user
-                    _lastFixedMovementApplied = moveDirection;
-            }
-            else
-            {
+                _targetRotation = rotationAroundPlayer;
+                _lastFixedRotationApplied = GetPredictedRotation();     // Re-call the prediction that now is "real"
+                
+                var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+                if(moveDirection != Vector3.zero)
+                    _controller.Move(moveDirection);
+                
+                // Update the last movement applied by the user
+                _lastFixedMovementApplied = moveDirection;
+            }else {
                 if(_wasBlocked)
                     _wasBlocked = false;
                 else
                     _wasBlocked = true;
-                
             }
             ApplyTouchGrounded();
         }
@@ -270,19 +276,6 @@ namespace Player.ControlModules
             }
 
             return projectedMove;
-        }
-        
-        private void ApplyRotation()
-        {
-            PhysicsModule physicsModule = Player.Instance.PhysicsModule;
-            if (physicsModule)
-            {
-                //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
-
-                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, RotationSpeedOnSlope * Time.fixedDeltaTime);
-                if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
-                    physicsModule.OnRotatingEnd();
-            }
         }
         
         private void ApplyTouchGrounded()
