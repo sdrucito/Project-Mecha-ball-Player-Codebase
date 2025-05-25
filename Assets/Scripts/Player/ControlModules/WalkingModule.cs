@@ -87,7 +87,13 @@ namespace Player.ControlModules
             
             // Reset movement delta
             _lastFixedMovementDelta = Vector3.zero;
+            _lastFixedMovementApplied = Vector3.zero;
             _lastPosition = Player.Instance.Rigidbody.position;
+            // Reset rotation delta
+            _lastFixedRotationDelta = Quaternion.identity;
+            _lastFixedRotationApplied = Quaternion.identity;
+            _lastRotation = Player.Instance.Rigidbody.rotation;
+            
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;

@@ -2,9 +2,18 @@ using UnityEngine;
 
 namespace Player.Animation
 {
+    /// <summary>
+    /// Handles opening and closing animation states for the player character,
+    /// coordinating Animator parameters and module activation callbacks.
+    /// </summary>
     public class PlayerAnimator : MonoBehaviour
     {
+        #region Serialized Fields
+        [Header("Animator Reference")]
         [SerializeField] private Animator animator;
+        #endregion
+
+        #region Animation State Flags
         private bool _isOpening = false;
         private bool _isClosing = false;
 
@@ -13,6 +22,12 @@ namespace Player.Animation
          */
         private bool _isOpened = false;
         private bool _isClosed = false;
+        #endregion
+
+        #region Unity Callbacks
+        /// <summary>
+        /// Subscribes to control module events and initializes open state.
+        /// </summary>
         private void Start()
         {
             Player player = Player.Instance;
@@ -20,26 +35,37 @@ namespace Player.Animation
             _isOpened = true;
             //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
         }
+        #endregion
 
+        #region Public API
+        /// <summary>
+        /// Begins open animation: sets kinematic, flags, and Animator parameter.
+        /// </summary>
         public void Open()
         {
             Player.Instance.Rigidbody.isKinematic = true;
             _isOpening = true;
             animator.SetBool("IsOpening", _isOpening);
-            if(_isOpened)
+            if (_isOpened)
                 OnOpenEnd();
-            
         }
 
+        /// <summary>
+        /// Begins close animation: sets flags and Animator parameter.
+        /// </summary>
         public void Close()
         {
             _isClosing = true;
             animator.SetBool("IsClosing", _isClosing);
-            if(_isClosed)
+            if (_isClosed)
                 OnCloseEnd();
         }
+        #endregion
 
-    
+        #region Animation Event Handlers
+        /// <summary>
+        /// Called when open animation finishes: resets flags, activates next module.
+        /// </summary>
         public void OnOpenEnd()
         {
             _isOpening = false;
@@ -48,7 +74,10 @@ namespace Player.Animation
             _isClosed = false;
             _isOpened = true;
         }
-    
+
+        /// <summary>
+        /// Called when close animation finishes: resets flags, activates next module.
+        /// </summary>
         public void OnCloseEnd()
         {
             _isClosing = false;
@@ -57,6 +86,6 @@ namespace Player.Animation
             _isClosed = true;
             _isOpened = false;
         }
-    
+        #endregion
     }
 }
