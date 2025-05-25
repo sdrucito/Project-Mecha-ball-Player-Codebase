@@ -12,23 +12,23 @@ namespace Player.ControlModules
     public class WalkingModule : ControlModule, IFixedUpdateObserver
     {
         public int FixedUpdatePriority { get; set; }
-
         
         [SerializeField] private float WalkingSpeed = 5f;
         [SerializeField] private float Gravity = -9.8f;
         [SerializeField] private float RotationSpeedOnSlope = 80f;
         [SerializeField] private float RotationSpeed = 40f;
         [SerializeField] private float ManualRotationMultiplier = 2f;
+        
         private float _verticalVelocity=0;
-
-        private CharacterController _controller;
+        private bool _wasBlocked = false;
+        private Quaternion _currentRotation;
+        private Quaternion _targetRotation = Quaternion.identity;
+        
         private Vector2 _inputVector = Vector2.zero;
         private Vector2 _directionInputVector = Vector2.zero;
-        private Quaternion _currentRotation;
-            
-        [SerializeField] private PlayerKneeWalkAnimator playerWalkAnimator;
         
-        private Quaternion _targetRotation = Quaternion.identity;
+        [SerializeField] private PlayerKneeWalkAnimator PlayerKneeWalkAnimator;
+        private CharacterController _controller;
 
         private Vector3 _lastFixedMovementDelta;
         private Vector3 _lastFixedMovementApplied;
@@ -37,9 +37,9 @@ namespace Player.ControlModules
         private Quaternion _lastFixedRotationDelta;
         private Quaternion _lastFixedRotationApplied;
         private Quaternion _lastRotation;
-        private bool _wasBlocked = false;
-        // Start is called once before the first execution of Update after the MonoBehaviour is created
-        void Awake()
+
+        #region Unity Lifecycle (Awake, Start, OnEnable, OnDisable)
+        private void Awake()
         {
             name = "Walk";
             FixedUpdatePriority = 0;
@@ -48,7 +48,7 @@ namespace Player.ControlModules
         private void Start()
         {
             _controller = Player.Instance.CharacterController;
-            playerWalkAnimator.OnOpenFinished += OpenFinished;
+            PlayerKneeWalkAnimator.OnOpenFinished += OpenFinished;
             _lastPosition = Player.Instance.Rigidbody.position;
             _lastFixedMovementApplied = Vector3.zero;
             _lastFixedMovementDelta = Vector3.zero;
@@ -64,7 +64,7 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
                 PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 OpenFinished();
-                playerWalkAnimator.enabled = true;
+                PlayerKneeWalkAnimator.enabled = true;
                 PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
             }
         }
@@ -76,10 +76,12 @@ namespace Player.ControlModules
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
                 PlayerInputManager.Instance.OnLookInput -= HandleDirection;
-                playerWalkAnimator.enabled = false;
+                PlayerKneeWalkAnimator.enabled = false;
             }
         }
-
+        #endregion
+        
+        #region Input Handlers
         private void OpenFinished()
         {
             if(_controller)
@@ -103,63 +105,36 @@ namespace Player.ControlModules
         {
             _directionInputVector = input;
         }
+        #endregion
         
-        // Update is called once per frame
         public void ObservedFixedUpdate()
         {
-            // Send to leg animator the difference of movement delta
-            ApplyWorldMovementToPlayer();
+            // Pre-movement phase
+            ApplyWorldMovementToPlayer();                       // Send to leg animator the difference of movement delta
+            ApplyWorldRotationToPlayer();                       // Compute world rotation and apply difference of user rotation
+            Player.Instance.RaycastManager.MovementDelta = GetPredictedMovement(); // Add to RaycastManager the movement applied for leg anticipation
+            Player.Instance.RaycastManager.RotationDelta = GetPredictedRotation(); // Add to RaycastManager the rotation applied for leg anticipation
+            PlayerKneeWalkAnimator.ExecuteGrounded();           // Fire ground check after input applied
             
-            // Compute world rotation and apply difference of user rotation
-            ApplyWorldRotationToPlayer();
-            // Add to RaycastManager the movement applied for leg anticipation
-            Player.Instance.RaycastManager.MovementDelta = GetPredictedMovement();
-            // Add to RaycastManager the rotation applied for leg anticipation
-            Player.Instance.RaycastManager.RotationDelta = GetPredictedRotation();
-            // Fire ground check after input applied
-            playerWalkAnimator.ExecuteGrounded();
-            
-            // Reset last fixed movement applied
-            _lastFixedMovementApplied = Vector3.zero;
-            
-            // Reset last fixed rotation applied
-            _lastFixedRotationApplied = Quaternion.identity;
-            
-            // Execute movement function
-            ExecuteMovement();
-            
-            // Verify the input movement is effectively moving the player
-            if (_lastFixedMovementDelta.magnitude < 0.01f)
-            {
-                // Flush the input movement if the player isn't moving
-                _lastFixedMovementApplied = Vector3.zero;
-            }
-            // The same goes for the rotation
-            if (_lastFixedRotationApplied == Quaternion.identity)
-            {
-                // Flush the input movement if the player isn't moving
-                _lastFixedRotationApplied = Quaternion.identity;
-            }
-            
-            // Update the movement delta for both the walk animator and raycast manager
-            playerWalkAnimator.MovementDelta = _lastFixedMovementApplied;
-            playerWalkAnimator.RotationDelta = _lastFixedRotationApplied;
-            // If I can't walk, flush the movement delta in the raycast manager
-            Player.Instance.RaycastManager.MovementDelta = _lastFixedMovementApplied;
-            Player.Instance.RaycastManager.RotationDelta = _lastFixedRotationApplied;
+            // Movement and rotation
+            _lastFixedMovementApplied = Vector3.zero;           // Reset last fixed movement applied
+            _lastFixedRotationApplied = Quaternion.identity;    // Reset last fixed rotation applied
+            ExecuteMovement();                                  // Execute movement function
 
-            // Re-execute ground check after movement and rotation delta applied
-            playerWalkAnimator.ExecuteGrounded();
+            // Post-movement phase
+            ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
+            PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
+            
             ApplyGravity();
-
         }
-
+        
+        #region Pre-movement and rotation methods
         private void ApplyWorldRotationToPlayer()
         {
             _lastFixedRotationDelta = Player.Instance.Rigidbody.rotation * Quaternion.Inverse(_lastRotation);
             Quaternion rotationDifference = _lastFixedRotationDelta * Quaternion.Inverse(_lastFixedRotationApplied);
             _lastRotation = Player.Instance.Rigidbody.rotation;
-            playerWalkAnimator.FollowUserRotation(rotationDifference);
+            PlayerKneeWalkAnimator.FollowUserRotation(rotationDifference);
         }
 
         private void ApplyWorldMovementToPlayer()
@@ -169,7 +144,7 @@ namespace Player.ControlModules
             
             _lastPosition = Player.Instance.Rigidbody.position;
    
-            playerWalkAnimator.FollowUserMovement(movementDifference);
+            PlayerKneeWalkAnimator.FollowUserMovement(movementDifference);
         }
 
         private Vector3 GetPredictedMovement()
@@ -208,18 +183,16 @@ namespace Player.ControlModules
             }
             return Quaternion.identity;
         }
-
-        #region Movement Logic
+        #endregion
+        
+        #region Movement methods
         private void ExecuteMovement()
         {
             Vector3 groundNormal = Player.Instance.GetGroundNormal();
             Vector3 projectedMove = ProjectedMove(_inputVector,groundNormal);
             
-            
             if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
-                if(_inputVector.magnitude > 0.01f)
-                {
                     // Rotate the player according to look or move direction only if it can move
                     if (_directionInputVector.magnitude < 0.01f){ // auto
                         if (projectedMove.magnitude > 0.01f)
@@ -247,9 +220,6 @@ namespace Player.ControlModules
                 
                     // Update the last movement applied by the user
                     _lastFixedMovementApplied = moveDirection;
-                }
-                
-
             }
             else
             {
@@ -260,12 +230,31 @@ namespace Player.ControlModules
                 
             }
             ApplyTouchGrounded();
-         
-           
+        }
+        private void ValidateMovement()
+        {            
+            // Verify the input movement is effectively moving the player
+            if (_lastFixedMovementDelta.magnitude < 0.01f)
+            {
+                // Flush the input movement if the player isn't moving
+                _lastFixedMovementApplied = Vector3.zero;
+            }
+            // The same goes for the rotation
+            if (_lastFixedRotationApplied == Quaternion.identity)
+            {
+                // Flush the input movement if the player isn't moving
+                _lastFixedRotationApplied = Quaternion.identity;
+            }
             
+            // Update the movement delta for both the walk animator and raycast manager
+            PlayerKneeWalkAnimator.MovementDelta = _lastFixedMovementApplied;
+            PlayerKneeWalkAnimator.RotationDelta = _lastFixedRotationApplied;
+            // If I can't walk, flush the movement delta in the raycast manager
+            Player.Instance.RaycastManager.MovementDelta = _lastFixedMovementApplied;
+            Player.Instance.RaycastManager.RotationDelta = _lastFixedRotationApplied;
             
         }
-
+        
         private Vector3 ProjectedMove(Vector3 input, Vector3 groundNormal)
         {
             Vector3 projectedMove;
@@ -282,15 +271,46 @@ namespace Player.ControlModules
 
             return projectedMove;
         }
+        
+        private void ApplyRotation()
+        {
+            PhysicsModule physicsModule = Player.Instance.PhysicsModule;
+            if (physicsModule)
+            {
+                //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
 
-        /// <summary>
+                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, RotationSpeedOnSlope * Time.fixedDeltaTime);
+                if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
+                    physicsModule.OnRotatingEnd();
+            }
+        }
+        
+        private void ApplyTouchGrounded()
+        {
+            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
+            _controller.Move(attach * Time.fixedDeltaTime);
+            //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
+        }
+        #endregion
+        private void ApplyGravity()
+        {
+            if (!Player.Instance.IsGrounded())
+            {
+                _verticalVelocity += Gravity * Time.fixedDeltaTime;
+                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
+                _controller.Move(fall * Time.fixedDeltaTime);
+            } 
+        }
+        
+        #region static methods
+        // <summary>
         /// Given the input from PlayerInputManager and the normal from PhysicsModule, calculate the best projected 
         /// movement between all the sheaf of planes.
         /// </summary>
         /// <param name="input"> Player input</param>
         /// <param name="normal"> Ground normal of the surface</param>
         /// <returns>Projected movement</returns>
-        private Vector3 GetClimbingMove(Vector2 input, Vector3 normal)
+        private static Vector3 GetClimbingMove(Vector2 input, Vector3 normal)
         {
             var normalXZ = new Vector3(normal.x, 0f, normal.z).normalized;
 
@@ -337,38 +357,6 @@ namespace Player.ControlModules
             var move = inputMap[bestIndex];
             return Vector3.ProjectOnPlane(move.normalized, normal);
         }
-        
-        private void ApplyRotation()
-        {
-            PhysicsModule physicsModule = Player.Instance.PhysicsModule;
-            if (physicsModule)
-            {
-                //Debug.Log("Movement delta " + Player.Instance.RaycastManager.GetMovementDelta());
-
-                transform.parent.rotation = Quaternion.RotateTowards(transform.parent.rotation, _targetRotation, RotationSpeedOnSlope * Time.fixedDeltaTime);
-                if (Quaternion.Angle(transform.parent.rotation, _targetRotation) < 0.01f)
-                    physicsModule.OnRotatingEnd();
-            }
-        }
-        
-
-        private void ApplyTouchGrounded()
-        {
-            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
-            _controller.Move(attach * Time.fixedDeltaTime);
-            //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
-
-        }
-        private void ApplyGravity()
-        {
-            if (!Player.Instance.IsGrounded())
-            {
-                _verticalVelocity += Gravity * Time.fixedDeltaTime;
-                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
-                _controller.Move(fall * Time.fixedDeltaTime);
-            } 
-        }
-        
-        #endregion
+        # endregion
     }
 }
