@@ -240,7 +240,7 @@ namespace Player.ControlModules
                 _lastFixedMovementApplied = Vector3.zero;
             }
             // The same goes for the rotation
-            if (_lastFixedRotationApplied == Quaternion.identity)
+            if (_lastFixedRotationDelta == Quaternion.identity)
             {
                 // Flush the input movement if the player isn't moving
                 _lastFixedRotationApplied = Quaternion.identity;

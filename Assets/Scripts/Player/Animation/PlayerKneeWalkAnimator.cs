@@ -123,8 +123,30 @@ namespace Player.Animation
             _groupBLegs.Add(_rearLeftFootAnim);
 
             _lastPosition = transform.position;
+            
+            BuildWhitenScale();
 
             InitializeLegs();
+        }
+
+
+        public void BuildWhitenScale()
+        {
+            var localPositions = _legs
+                .Select(l => transform.InverseTransformPoint(l.Transform.position))
+                .ToList();
+            float minX = localPositions.Min(p => p.x);
+            float maxX = localPositions.Max(p => p.x);
+            float minZ = localPositions.Min(p => p.z);
+            float maxZ = localPositions.Max(p => p.z);
+            float halfWidth  = (maxX - minX) * 0.5f;
+            float halfLength = (maxZ - minZ) * 0.5f;
+            Vector2 whitenScale = new Vector2(
+                1f / halfWidth,
+                1f / halfLength
+            );
+            Player.Instance.UpdateWhitenScaleForLegs(whitenScale);
+
         }
 
         /// <summary>
@@ -132,7 +154,7 @@ namespace Player.Animation
         /// </summary>
         private bool VerifyMove()
         {
-            return MovementDelta.magnitude >= 0.01f;
+            return MovementDelta.magnitude >= 0.01f || RotationDelta != Quaternion.identity;
         }
 
         /// <summary>

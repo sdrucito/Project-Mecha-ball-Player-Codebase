@@ -43,6 +43,7 @@ namespace Player
         private int _groundLayer;
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
+        private Vector2 _whitenScale = Vector2.one;
         #endregion
 
         #region Contact & Collision Queues
@@ -102,6 +103,7 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
+            Debug.Log("Computed correlation: " + sumCorrelation);
             return sumCorrelation > minCorrelationForTransition;
         }
 
@@ -114,6 +116,14 @@ namespace Player
             var movementDirection = Player.Instance.RaycastManager.GetMovementDelta();
             // apply gravity-influenced movement here as needed
             Player.Instance.ControlModuleManager.SwitchMode();
+        }
+
+        /// <summary>
+        /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
+        /// </summary>
+        public void UpdateWhitenScale(Vector2 scale)
+        {
+            _whitenScale = scale;
         }
         #endregion
 
@@ -233,10 +243,33 @@ namespace Player
         /// </summary>
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
+            // 1) Get both vectors into the same coordinate space (let's pick local):
+            Vector3 toP  = transform.InverseTransformPoint(point);
+            Vector3 vel = transform.InverseTransformDirection(velocity);
+
+            // 2) Drop the up‐component
+            toP.y  = 0f;
+            vel.y = 0f;
+
+            // 3) Whiten (i.e. scale X and Z by the inverse‐half‐extents):
+            toP.x *= _whitenScale.x;
+            toP.z *= _whitenScale.y;
+            vel.x *= _whitenScale.x;
+            vel.z *= _whitenScale.y;
+
+            // 4) Normalize and dot
+            toP.Normalize();
+            vel.Normalize();
+            return Vector3.Dot(toP, vel);
+        }
+        /*
+        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
+        {
             Vector3 toPointFlat = Vector3.ProjectOnPlane(point - transform.position, _groundNormal).normalized;
             Vector3 velFlat = Vector3.ProjectOnPlane(velocity, _groundNormal).normalized;
             return Vector3.Dot(toPointFlat, velFlat);
         }
+        */
         #endregion
 
         #region Rotation Completion

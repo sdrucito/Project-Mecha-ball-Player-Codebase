@@ -5,11 +5,8 @@ using UnityEngine.Serialization;
 namespace Player
 {
     [RequireComponent(typeof(Rigidbody),typeof(PlayerAttributes))]
-    public class Player : MonoBehaviour
+    public class Player : Singleton<Player>
     {
-
-        public static Player Instance;
-
         private PhysicsModule _physicsModule;
         private PlayerAttributes _playerAttributes;
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
@@ -19,17 +16,8 @@ namespace Player
 
         [field: SerializeField] public PhysicsModule PhysicsModule { get; private set; }
 
-        private void Awake()
+        private new void Awake()
         {
-            if (Instance == null)
-            {
-                DontDestroyOnLoad(gameObject);
-                Instance = this;
-            }
-            else if (Instance != this)
-            {
-                Destroy(gameObject);
-            }
             _physicsModule = GetComponent<PhysicsModule>();
             _playerAttributes = GetComponent<PlayerAttributes>();
         }
@@ -72,6 +60,11 @@ namespace Player
         public Vector3 GetGroundNormal()
         {
             return _physicsModule.GetGroundNormal();
+        }
+
+        public void UpdateWhitenScaleForLegs(Vector2 whitenScale)
+        {
+            _physicsModule.UpdateWhitenScale(whitenScale);
         }
 
         public void SetMovementEnabled(bool movementEnabled)
