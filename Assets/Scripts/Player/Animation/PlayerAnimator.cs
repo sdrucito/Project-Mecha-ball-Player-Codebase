@@ -39,11 +39,10 @@ namespace Player.Animation
 
         #region Public API
         /// <summary>
-        /// Begins open animation: sets kinematic, flags, and Animator parameter.
+        /// Begins open animation: sets flags and Animator parameter.
         /// </summary>
         public void Open()
         {
-            Player.Instance.Rigidbody.isKinematic = true;
             _isOpening = true;
             animator.SetBool("IsOpening", _isOpening);
             if (_isOpened)

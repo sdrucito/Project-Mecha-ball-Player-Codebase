@@ -85,10 +85,6 @@ namespace Player.PlayerController
             IsSwitching = true;
             _modules[_actualModule].OnActivated?.Invoke();
         }
-        public void ActivateKinematic()
-        {
-            Player.Instance.Rigidbody.isKinematic = true;
-        }
 
         private int GetNextModule()
         {

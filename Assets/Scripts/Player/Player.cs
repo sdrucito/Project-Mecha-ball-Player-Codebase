@@ -12,7 +12,6 @@ namespace Player
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
         [field: SerializeField] public Rigidbody Rigidbody { get; private set; }
         [field: SerializeField] public RaycastManager RaycastManager { get; private set; }
-        [field: SerializeField] public CharacterController CharacterController { get; private set; }
 
         [field: SerializeField] public PhysicsModule PhysicsModule { get; private set; }
 
@@ -72,7 +71,6 @@ namespace Player
             //ControlModuleManager.SetModuleEnabled(movementEnabled);
             ControlModuleManager.GetModule(ControlModuleManager.GetActiveModuleName()).IsActive = movementEnabled;
             PlayerInputManager.Instance.SetInputEnabled(movementEnabled);
-            CharacterController.enabled = movementEnabled;
         }
 
         

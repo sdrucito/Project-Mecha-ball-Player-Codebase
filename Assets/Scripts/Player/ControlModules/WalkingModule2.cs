@@ -9,7 +9,7 @@ using Vector3 = UnityEngine.Vector3;
 
 namespace Player.ControlModules
 {
-    public class WalkingModule : ControlModule, IFixedUpdateObserver
+    public class WalkingModule2 : ControlModule, IFixedUpdateObserver
     {
         public int FixedUpdatePriority { get; set; }
         
@@ -28,7 +28,7 @@ namespace Player.ControlModules
         private Vector2 _directionInputVector = Vector2.zero;
         
         [SerializeField] private PlayerKneeWalkAnimator PlayerKneeWalkAnimator;
-        private CharacterController _controller;
+        private Rigidbody rigidbody;
 
         private Vector3 _lastFixedMovementDelta;
         private Vector3 _lastFixedMovementApplied;
@@ -47,6 +47,7 @@ namespace Player.ControlModules
 
         private void Start()
         {
+            rigidbody = Player.Instance.Rigidbody;
             PlayerKneeWalkAnimator.OnOpenFinished += OpenFinished;
             _lastPosition = Player.Instance.Rigidbody.position;
             _lastFixedMovementApplied = Vector3.zero;
@@ -83,9 +84,6 @@ namespace Player.ControlModules
         #region Input Handlers
         private void OpenFinished()
         {
-            if(_controller)
-                _controller.enabled = true;
-            
             // Reset movement delta
             _lastFixedMovementDelta = Vector3.zero;
             _lastFixedMovementApplied = Vector3.zero;
@@ -124,7 +122,7 @@ namespace Player.ControlModules
             ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
             PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
             
-            ApplyGravity();
+            ApplyGravity(); //TODO: vedere con Alberto se serve ancora
         }
         
         #region Pre-movement and rotation methods
@@ -224,7 +222,7 @@ namespace Player.ControlModules
                 
                 var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
                 if(moveDirection != Vector3.zero)
-                    _controller.Move(moveDirection);
+                    rigidbody.MovePosition(rigidbody.position + moveDirection);
                 
                 // Update the last movement applied by the user
                 _lastFixedMovementApplied = moveDirection;
@@ -280,7 +278,7 @@ namespace Player.ControlModules
         private void ApplyTouchGrounded()
         {
             Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
-            _controller.Move(attach * Time.fixedDeltaTime);
+            rigidbody.MovePosition(rigidbody.position+attach * Time.fixedDeltaTime);
             //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
         }
         #endregion
@@ -289,9 +287,17 @@ namespace Player.ControlModules
             if (!Player.Instance.IsGrounded())
             {
                 _verticalVelocity += Gravity * Time.fixedDeltaTime;
-                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
-                _controller.Move(fall * Time.fixedDeltaTime);
-            } 
+            }
+            else if (_verticalVelocity < 0f)
+            {
+                _verticalVelocity = 0f;
+            }
+
+            if (_verticalVelocity != 0f)
+            {
+                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f) * Time.fixedDeltaTime;
+                rigidbody.MovePosition(rigidbody.position + fall);
+            }
         }
         
         #region static methods

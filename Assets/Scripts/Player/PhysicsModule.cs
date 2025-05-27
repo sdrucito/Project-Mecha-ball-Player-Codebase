@@ -103,7 +103,7 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
-            Debug.Log("Computed correlation: " + sumCorrelation);
+            //Debug.Log("Computed correlation: " + sumCorrelation);
             return sumCorrelation > minCorrelationForTransition;
         }
 
@@ -112,7 +112,7 @@ namespace Player
         /// </summary>
         private void Fall()
         {
-            var characterController = Player.Instance.CharacterController;
+            //var characterController = Player.Instance.CharacterController;
             var movementDirection = Player.Instance.RaycastManager.GetMovementDelta();
             // apply gravity-influenced movement here as needed
             Player.Instance.ControlModuleManager.SwitchMode();
