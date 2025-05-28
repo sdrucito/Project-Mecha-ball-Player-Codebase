@@ -1,3 +1,4 @@
+using System;
 using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -33,6 +34,13 @@ namespace Player
         {
             _playerAttributes.ResetMaxHealth();
         }
+
+        public void PositionPlayer(Transform newPosition)
+        {
+            // Here the player should play something like spawn animations, sounds ecc.
+            throw new NotImplementedException();
+        }
+        
         private void OnCollisionEnter(Collision other)
         {
             // Create collision data wrapper
