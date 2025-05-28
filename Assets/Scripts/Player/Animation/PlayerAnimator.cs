@@ -23,6 +23,8 @@ namespace Player.Animation
         private bool _isOpened = false;
         private bool _isClosed = false;
         #endregion
+        
+        private Rigidbody _rigidbody;
 
         #region Unity Callbacks
         /// <summary>
@@ -33,6 +35,7 @@ namespace Player.Animation
             Player player = Player.Instance;
             player.ControlModuleManager.GetModule("Ball").OnActivated += Close;
             _isOpened = true;
+            _rigidbody=GetComponentInParent<Rigidbody>();
             //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
         }
         #endregion
@@ -43,6 +46,7 @@ namespace Player.Animation
         /// </summary>
         public void Open()
         {
+            _rigidbody.isKinematic = true;
             _isOpening = true;
             animator.SetBool("IsOpening", _isOpening);
             if (_isOpened)

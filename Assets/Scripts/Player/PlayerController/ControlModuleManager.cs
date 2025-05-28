@@ -29,7 +29,7 @@ namespace Player.PlayerController
         {
             GetAvailableControlModules();
             _actualModule = 0;
-            _previousModule = 0;
+            _previousModule = 1;
         }
 
         private void Start()

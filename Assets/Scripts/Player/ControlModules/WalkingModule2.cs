@@ -22,13 +22,14 @@ namespace Player.ControlModules
         private float _verticalVelocity=0;
         private bool _wasBlocked = false;
         private Quaternion _currentRotation;
-        private Quaternion _targetRotation = Quaternion.identity;
         
         private Vector2 _inputVector = Vector2.zero;
         private Vector2 _directionInputVector = Vector2.zero;
         
         [SerializeField] private PlayerKneeWalkAnimator PlayerKneeWalkAnimator;
-        private Rigidbody rigidbody;
+        private Rigidbody _rigidbody;
+        [SerializeField] private float OverrideLinearDrag;
+        [SerializeField] private float OverrideAngularDrag;
 
         private Vector3 _lastFixedMovementDelta;
         private Vector3 _lastFixedMovementApplied;
@@ -47,7 +48,7 @@ namespace Player.ControlModules
 
         private void Start()
         {
-            rigidbody = Player.Instance.Rigidbody;
+            _rigidbody = Player.Instance.Rigidbody;
             PlayerKneeWalkAnimator.OnOpenFinished += OpenFinished;
             _lastPosition = Player.Instance.Rigidbody.position;
             _lastFixedMovementApplied = Vector3.zero;
@@ -66,6 +67,11 @@ namespace Player.ControlModules
                 OpenFinished();
                 PlayerKneeWalkAnimator.enabled = true;
                 PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+                
+                if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
+                _rigidbody.linearDamping = OverrideLinearDrag;
+                _rigidbody.angularDamping = OverrideAngularDrag;
+                this.GetComponent<Collider>().enabled = true;
             }
         }
 
@@ -77,6 +83,7 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
                 PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
+                this.GetComponent<Collider>().enabled = false;
             }
         }
         #endregion
@@ -92,7 +99,7 @@ namespace Player.ControlModules
             _lastFixedRotationDelta = Quaternion.identity;
             _lastFixedRotationApplied = Quaternion.identity;
             _lastRotation = Player.Instance.Rigidbody.rotation;
-            
+            if (_rigidbody) _rigidbody.isKinematic = false;
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;
@@ -122,7 +129,6 @@ namespace Player.ControlModules
             ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
             PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
             
-            ApplyGravity(); //TODO: vedere con Alberto se serve ancora
         }
         
         #region Pre-movement and rotation methods
@@ -217,12 +223,11 @@ namespace Player.ControlModules
                     Player.Instance.PhysicsModule.OnRotatingEnd();
                 }
                 
-                _targetRotation = rotationAroundPlayer;
                 _lastFixedRotationApplied = GetPredictedRotation();     // Re-call the prediction that now is "real"
                 
                 var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
                 if(moveDirection != Vector3.zero)
-                    rigidbody.MovePosition(rigidbody.position + moveDirection);
+                    _rigidbody.MovePosition(_rigidbody.position + moveDirection);
                 
                 // Update the last movement applied by the user
                 _lastFixedMovementApplied = moveDirection;
@@ -278,7 +283,7 @@ namespace Player.ControlModules
         private void ApplyTouchGrounded()
         {
             Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
-            rigidbody.MovePosition(rigidbody.position+attach * Time.fixedDeltaTime);
+            _rigidbody.MovePosition(_rigidbody.position+attach * Time.fixedDeltaTime);
             //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
         }
         #endregion
@@ -296,7 +301,7 @@ namespace Player.ControlModules
             if (_verticalVelocity != 0f)
             {
                 Vector3 fall = new Vector3(0f, _verticalVelocity, 0f) * Time.fixedDeltaTime;
-                rigidbody.MovePosition(rigidbody.position + fall);
+                _rigidbody.MovePosition(_rigidbody.position + fall);
             }
         }
         

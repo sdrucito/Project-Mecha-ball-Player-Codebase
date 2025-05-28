@@ -13,25 +13,35 @@ namespace Player.ControlModules
         [SerializeField] private float sprintImpulseMagnitude;
         [SerializeField] private float sprintCooldownTime;
         
+        private Rigidbody _rigidbody;
+        [SerializeField] private float OverrideLinearDrag;
+        [SerializeField] private float OverrideAngularDrag;
+        
         private bool _canSprint = true;
         private void Awake()
         {
             name = "Ball";
         }
-        
+
+        private void Start()
+        {
+            _rigidbody = Player.Instance.Rigidbody;
+        }
 
         public void OnEnable()
         {
             PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+            if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
+            _rigidbody.linearDamping = OverrideLinearDrag;
+            _rigidbody.angularDamping = OverrideAngularDrag;
         }
 
         public void OnDisable()
         {
             PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
-
         }
 
         private void Input_JumpImpulse()
