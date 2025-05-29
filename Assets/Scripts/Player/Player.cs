@@ -21,8 +21,10 @@ namespace Player
 
         [field: SerializeField] public PhysicsModule PhysicsModule { get; private set; }
 
-        private new void Awake()
+        [field: SerializeField] public PlayerSound PlayerSound { get; private set; }
+        protected override void Awake()
         {
+            base.Awake();
             _physicsModule = GetComponent<PhysicsModule>();
             _pawnAttributes = GetComponent<PawnAttributes>();
         }

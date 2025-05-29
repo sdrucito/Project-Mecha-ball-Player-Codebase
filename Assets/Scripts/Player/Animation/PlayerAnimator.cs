@@ -50,7 +50,14 @@ namespace Player.Animation
             _isOpening = true;
             animator.SetBool("IsOpening", _isOpening);
             if (_isOpened)
+            {
                 OnOpenEnd();
+            }
+            else
+            {
+                AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotOpenEvent.eventReference, transform.position);
+            }
+            
         }
 
         /// <summary>
