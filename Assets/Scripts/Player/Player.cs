@@ -1,14 +1,20 @@
+using System;
 using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace Player
 {
-    [RequireComponent(typeof(Rigidbody),typeof(PlayerAttributes))]
-    public class Player : Singleton<Player>
+    [RequireComponent(typeof(Rigidbody),typeof(PawnAttributes))]
+    public class Player : Singleton<Player>, IDamageable
     {
+        
+        public Action OnPlayerDeath;
+        
         private PhysicsModule _physicsModule;
-        private PlayerAttributes _playerAttributes;
+        private PawnAttributes _pawnAttributes;
+
+ 
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
         [field: SerializeField] public Rigidbody Rigidbody { get; private set; }
         [field: SerializeField] public RaycastManager RaycastManager { get; private set; }
@@ -18,7 +24,7 @@ namespace Player
         private new void Awake()
         {
             _physicsModule = GetComponent<PhysicsModule>();
-            _playerAttributes = GetComponent<PlayerAttributes>();
+            _pawnAttributes = GetComponent<PawnAttributes>();
         }
 
         private void Start()
@@ -30,7 +36,7 @@ namespace Player
 
         private void InitializePlayer()
         {
-            _playerAttributes.ResetMaxHealth();
+            _pawnAttributes.ResetMaxHealth();
         }
         private void OnCollisionEnter(Collision other)
         {
@@ -73,6 +79,11 @@ namespace Player
             PlayerInputManager.Instance.SetInputEnabled(movementEnabled);
         }
 
+        public void TakeDamage(float damage)
+        {
+            // TODO: Call here SFX and VFX for damage taken
+            _pawnAttributes.TakeDamage(damage);
+        }
         
     }
 }

@@ -44,6 +44,8 @@ namespace Player
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
         private Vector2 _whitenScale = Vector2.one;
+        private Vector3 _savedPosition = Vector3.zero;
+        private Quaternion _savedRotation = Quaternion.identity;
         #endregion
 
         #region Contact & Collision Queues
@@ -56,6 +58,13 @@ namespace Player
         /// Indicates whether the module is currently rotating to align with terrain.
         /// </summary>
         public bool IsRotating => _isRotating;
+        
+        /*
+        /// <summary>
+        /// Indicates whether the module has to reposition the player to the last saved position/rotation
+        /// </summary>
+        public bool RepositionFlag { get; set; }
+*/
         #endregion
 
         #region Unity Callbacks
@@ -280,6 +289,31 @@ namespace Player
         {
             _isRotating = false;
         }
+        #endregion
+        
+        #region Player Reposition
+
+        public void RepositionOnFall()
+        {
+            Rigidbody rb = Player.Instance.Rigidbody;
+            rb.isKinematic = true;
+            rb.position = _savedPosition;
+            rb.rotation = _savedRotation;
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            
+            // TODO: Call here SFX and VFX associated
+            
+            Player.Instance.TakeDamage(20.0f);
+        }
+
+        public void SaveReposition()
+        {
+            _savedPosition = transform.position;
+            _savedRotation = transform.rotation;
+        }
+        
         #endregion
     }
 }

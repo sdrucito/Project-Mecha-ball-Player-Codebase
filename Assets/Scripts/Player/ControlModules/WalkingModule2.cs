@@ -230,6 +230,7 @@ namespace Player.ControlModules
                 // Update the last movement applied by the user
                 _lastFixedMovementApplied = moveDirection;
             }else {
+                Debug.Log("Blocked movement");
                 if(_wasBlocked)
                     _wasBlocked = false;
                 else

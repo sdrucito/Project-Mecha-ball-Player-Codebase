@@ -88,6 +88,8 @@ namespace Player.Animation
             Player.Instance.ControlModuleManager.ActivateNextModule();
             _isClosed = true;
             _isOpened = false;
+            
+            Player.Instance.PhysicsModule.SaveReposition();
         }
         #endregion
     }

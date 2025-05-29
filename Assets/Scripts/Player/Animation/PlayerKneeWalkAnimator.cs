@@ -133,7 +133,7 @@ namespace Player.Animation
         public void BuildWhitenScale()
         {
             var localPositions = _legs
-                .Select(l => transform.InverseTransformPoint(l.Transform.position))
+                .Select(l => transform.parent.transform.InverseTransformPoint(l.Transform.position))
                 .ToList();
             float minX = localPositions.Min(p => p.x);
             float maxX = localPositions.Max(p => p.x);
