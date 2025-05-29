@@ -21,6 +21,11 @@ public class RaycastManager : MonoBehaviour
     [Header("Terrain Layer")]
     [SerializeField] private string terrainLayer;
     [SerializeField] private float maxMovementMagnitude = 1f;
+
+    [Header("Foot Plane Rotation")] 
+    [SerializeField] private int footPlaneSteps = 3;
+
+    [SerializeField] private int footPlaneRotationAngle = 20;
     #endregion
 
     #region Private Fields
@@ -53,7 +58,7 @@ public class RaycastManager : MonoBehaviour
         Gizmos.color = Color.yellow;
         foreach (var leg in _legs)
         {
-            Vector3 origin = ComputeLegPositionForStep(leg);
+            Vector3 origin = ComputeLegPositionForStep(leg, 0.0f);
             Vector3 direction = -_rigidbody.transform.up;
 
             Gizmos.DrawLine(origin, origin + direction * jumpHeight);
@@ -94,12 +99,28 @@ public class RaycastManager : MonoBehaviour
     /// </summary>
     public void ExecuteGroundedForLeg(LegAnimator leg)
     {
-        Vector3 origin = ComputeLegPositionForStep(leg);
+        Vector3 origin = ComputeLegPositionForStep(leg,0.0f);
         var ray = new Ray(origin, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             _hitList.TryAdd(leg.Name, hit);
-        }
+        }/*
+        else
+        {
+            float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
+            Debug.Log("Used angle for tilt: " + angle);
+            for (int i = 0; i < footPlaneSteps; i++)
+            {
+                origin = ComputeLegPositionForStep(leg, angle);
+                ray = new Ray(origin, -_rigidbody.transform.up);
+                if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+                {
+                    _hitList.TryAdd(leg.Name, hit);
+                    break;
+                } 
+                angle += footPlaneRotationAngle;
+            }
+        }*/
     }
 
     /// <summary>
@@ -109,7 +130,7 @@ public class RaycastManager : MonoBehaviour
     {
         if (_hitList.TryGetValue(leg.Name, out var hit))
         {
-            Debug.DrawLine(leg.NewPosition, hit.point, Color.blue);
+            //Debug.DrawLine(leg.NewPosition, hit.point, Color.blue);
             if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
             {
                 leg.Lerp = 0f;
@@ -185,15 +206,22 @@ public class RaycastManager : MonoBehaviour
     /// <summary>
     /// Calculates world-space origin for a leg raycast based on anticipation and rotation.
     /// </summary>
-    private Vector3 ComputeLegPositionForStep(LegAnimator leg)
+    private Vector3 ComputeLegPositionForStep(LegAnimator leg, float tiltAngleDeg)
     {
         var body = _rigidbody.transform;
         Vector3 offset = body.rotation * leg.RelativePosition;
         Vector3 anticipation = MovementDelta * stepAnticipationMultiplier;
         Vector3 rotatedOffset = RotationDelta * offset;
-        Vector3 rotAnt = (rotatedOffset - offset) * rotAnticipationMultiplier;
-        Vector3 origin = body.position + offset + rotAnt + anticipation;
-        Debug.DrawLine(body.position + offset + rotAnt, origin, Color.red);
+        //Vector3 rotAnt = (rotatedOffset - offset) * rotAnticipationMultiplier;
+        Vector3 origin = body.position + rotatedOffset + anticipation;
+        /*
+        // Compute relative rotation of the projection
+        Vector3 v = rotatedOffset + anticipation;
+        Vector3 axis = Vector3.Cross(v, body.up).normalized;
+        Vector3 tiltedV = Quaternion.AngleAxis(tiltAngleDeg, axis) * v;
+        Vector3 finalPos = body.position + tiltedV;
+        Debug.DrawLine(body.position, finalPos, Color.red);
+*/
         return origin;
     }
     #endregion

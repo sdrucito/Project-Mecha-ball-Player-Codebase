@@ -29,4 +29,14 @@ public class PlayerSound : MonoBehaviour
 
         walkingEvent.stop(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);
     }
+
+    public void TakeDamage()
+    {
+        AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotDamage.eventReference, transform.position);
+    }
+
+    public void SingleStep()
+    {
+        AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotStep.eventReference, transform.position);
+    }
 }

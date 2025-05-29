@@ -85,6 +85,7 @@ namespace Player
         {
             // TODO: Call here SFX and VFX for damage taken
             _pawnAttributes.TakeDamage(damage);
+            PlayerSound.TakeDamage();
         }
         
     }

@@ -88,6 +88,7 @@ namespace Player
             if (controlModule != null && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
             {
                 var hits = raycastManager?.GetHitList();
+                Debug.Log("In grounded hit list number: " + hits?.Count + " hit object " + hits);
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
                     UpdateGroundNormal(hits, raycastManager);
@@ -100,7 +101,10 @@ namespace Player
         public bool CanMove(Vector3 movement)
         {
             if (!_isGrounded)
+            {
+                Debug.Log("NOT GROUNDED");
                 return false;
+            }
             if (movement.magnitude <= 0f)
                 return true;
 
@@ -112,7 +116,8 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
-            //Debug.Log("Computed correlation: " + sumCorrelation);
+            if(sumCorrelation == 0f)
+                Debug.Log("Computed correlation: " + sumCorrelation);
             return sumCorrelation > minCorrelationForTransition;
         }
 
@@ -172,10 +177,14 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            if (hitData.Layer == _groundLayer)
-                _groundNormal = GetCollisionNormal(hitData);
-            _collisionLayers.Enqueue(hitData.Layer);
-            UpdateGrounded();
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() == "Ball")
+            {
+                if (hitData.Layer == _groundLayer)
+                    _groundNormal = GetCollisionNormal(hitData);
+                _collisionLayers.Enqueue(hitData.Layer);
+                UpdateGrounded();
+            }
+            
         }
 
         /// <summary>
@@ -183,8 +192,12 @@ namespace Player
         /// </summary>
         public void OnExitPhysicsUpdate(CollisionData hitData)
         {
-            TryDequeueTerrain(hitData);
-            UpdateGrounded();
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() == "Ball")
+            {
+                TryDequeueTerrain(hitData);
+                UpdateGrounded();
+            }
+            
         }
 
         private void TryDequeueTerrain(CollisionData hitData)
