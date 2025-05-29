@@ -71,7 +71,6 @@ namespace Player.ControlModules
                 if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
                 _rigidbody.linearDamping = OverrideLinearDrag;
                 _rigidbody.angularDamping = OverrideAngularDrag;
-                this.GetComponent<Collider>().enabled = true;
             }
         }
 
@@ -83,7 +82,6 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
                 PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
-                this.GetComponent<Collider>().enabled = false;
             }
         }
         #endregion
