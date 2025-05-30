@@ -88,6 +88,7 @@ namespace Player
             if (controlModule != null && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
             {
                 var hits = raycastManager?.GetHitList();
+                //Debug.Log("In grounded hit list number: " + hits?.Count + " hit object " + hits);
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
                     UpdateGroundNormal(hits);
