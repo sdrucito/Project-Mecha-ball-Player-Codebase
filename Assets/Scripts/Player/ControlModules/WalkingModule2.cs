@@ -281,39 +281,26 @@ namespace Player.ControlModules
 
             return projectedMove;
         }
-        
-        private void ApplyTouchGrounded()
-        {
-            //Vector3 attach = (Player.Instance.GetGroundNormal().normalized) * (0.1f * Gravity);
+
+        private void ApplyTouchGrounded() {
             List<RaycastHit> contactPoints = Player.Instance.RaycastManager.GetHitList();
-            if (contactPoints.Count > 0)
-            {
-                bool sameNormal = true;
-                int index = 1;
-                RaycastHit groundNormal = contactPoints[0];
-                while (index < contactPoints.Count)
-                {
-                    if (contactPoints[index].normal != groundNormal.normal)
-                    {
-                        sameNormal = false;
-                        break;
-                    }
+            if (contactPoints.Count <= 0) return; //floating
 
-                    index++;
-                }
-
-                if (sameNormal)
+            var allNormalsEqual = true;
+            RaycastHit groundHit = contactPoints[0];
+            for (var i = 1; i < contactPoints.Count; i++) {
+                if (Vector3.Angle(contactPoints[i].normal, groundHit.normal) > 1f) // 1° degree of tollerance
                 {
-                    Vector3 normal = groundNormal.normal;
-                    //Vector3 attach = _rigidbody.transform.up * (0.05f * Gravity);
-                    Vector3 attach = normal * (0.05f * Gravity);
-                    _rigidbody.MovePosition(_rigidbody.position+attach * Time.fixedDeltaTime);
-                    //_rigidbody.AddForce(attach, ForceMode.Impulse);
-                    Debug.DrawRay(transform.position, 100* attach * Time.fixedDeltaTime, Color.green,3f);
+                    allNormalsEqual = false;
+                    break;
                 }
-                
             }
-            
+
+            if (allNormalsEqual) {
+                Vector3 attach = groundHit.normal * (0.05f * Gravity);
+                _rigidbody.MovePosition(_rigidbody.position + attach * Time.fixedDeltaTime);
+                Debug.DrawRay(transform.position, attach * (100 * Time.fixedDeltaTime), Color.green, 3f);
+            }
         }
         #endregion
         private void ApplyGravity()

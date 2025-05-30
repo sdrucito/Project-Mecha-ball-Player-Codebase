@@ -108,7 +108,7 @@ public class RaycastManager : MonoBehaviour
         else
         {
             float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
-            Debug.Log("Used angle for tilt: " + angle);
+            //Debug.Log("Used angle for tilt: " + angle);
             for (int i = 0; i < footPlaneSteps; i++)
             {
                 origin = ComputeLegPositionForStep(leg, angle);
