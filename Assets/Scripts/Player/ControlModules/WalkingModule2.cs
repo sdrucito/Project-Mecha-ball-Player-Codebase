@@ -72,6 +72,7 @@ namespace Player.ControlModules
                 if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
                 _rigidbody.linearDamping = OverrideLinearDrag;
                 _rigidbody.angularDamping = OverrideAngularDrag;
+                _rigidbody.WakeUp();
             }
         }
 

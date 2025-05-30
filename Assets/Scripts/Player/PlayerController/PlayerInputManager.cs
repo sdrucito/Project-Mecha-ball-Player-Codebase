@@ -66,7 +66,7 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
-            var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle);
+            var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+45);
             OnMoveInput?.Invoke(inputCameraRelative);
             if (_isSprintImpulse && _currentMoveInput != Vector2.zero)
             {
