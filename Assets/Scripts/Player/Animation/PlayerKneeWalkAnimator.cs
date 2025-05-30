@@ -204,7 +204,6 @@ namespace Player.Animation
                     StartStepForGroup(_currentGroup);
                 }
             }
-
             MoveLegs(_currentGroup);
 
             _wasMoving = isMoving;

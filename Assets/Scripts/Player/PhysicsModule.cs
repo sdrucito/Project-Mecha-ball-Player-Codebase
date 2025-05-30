@@ -88,7 +88,6 @@ namespace Player
             if (controlModule != null && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
             {
                 var hits = raycastManager?.GetHitList();
-                Debug.Log("In grounded hit list number: " + hits?.Count + " hit object " + hits);
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
                     UpdateGroundNormal(hits);
@@ -193,7 +192,6 @@ namespace Player
         public void OnExitPhysicsUpdate(CollisionData hitData)
         {
             
-                Debug.Log("Enqueueing");
                 TryDequeueTerrain(hitData);
                 if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
                 {
@@ -204,7 +202,6 @@ namespace Player
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            Debug.Log("Dequeueing");
             _collisionLayers.Remove(hitData.Layer);
         }
         #endregion

@@ -100,6 +100,8 @@ public class RaycastManager : MonoBehaviour
     public void ExecuteGroundedForLeg(LegAnimator leg)
     {
         Vector3 origin = ComputeLegPositionForStep(leg,0.0f);
+        //Debug.DrawLine(origin, origin + -_rigidbody.transform.up * jumpHeight, Color.cyan, 1f);
+
         var ray = new Ray(origin, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
@@ -107,18 +109,23 @@ public class RaycastManager : MonoBehaviour
         }
         else
         {
-            float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
-            Debug.Log("Used angle for tilt: " + angle);
+            //float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
             for (int i = 0; i < footPlaneSteps; i++)
             {
+                float stepIndex    = i - (footPlaneSteps - 1) * 0.5f;
+                float angle        = stepIndex * footPlaneRotationAngle;
                 origin = ComputeLegPositionForStep(leg, angle);
-                ray = new Ray(origin, -_rigidbody.transform.up);
+                Vector3 legDirection = origin - _rigidbody.position;
+                // double‐cross gives you the projection of down onto the plane ⟂ legDir
+                Vector3 newDownDirection    = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
+                Debug.DrawLine(origin, origin + newDownDirection * jumpHeight, Color.blue, 1f);
+                //Debug.DrawLine(origin, origin -_rigidbody.transform.up * jumpHeight, Color.blue, 1.0f);
+                ray = new Ray(origin, newDownDirection);
                 if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
                 {
                     _hitList.TryAdd(leg.Name, hit);
                     break;
                 } 
-                angle += footPlaneRotationAngle;
             }
         }
     }
@@ -229,7 +236,7 @@ public class RaycastManager : MonoBehaviour
         Vector3 finalPos = body.position + tiltedV;
         Debug.DrawLine(body.position, finalPos, Color.red);
 
-        return origin;
+        return finalPos;
     }
     #endregion
 }
