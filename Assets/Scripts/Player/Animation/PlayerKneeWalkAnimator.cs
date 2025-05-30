@@ -320,12 +320,13 @@ namespace Player.Animation
 
             if (legAnimator.Lerp < 1f)
             {
-                legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.deltaTime * stepSpeed, 1f);
+                legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.fixedDeltaTime * stepSpeed, 1f);
                 float t = legAnimationCurve.Evaluate(legAnimator.Lerp);
                 float verticalOffset = Mathf.Sin(t * Mathf.PI) * stepHeight;
 
-                Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.deltaTime, legAnimator.NewPosition);
-                Vector3 localVertical = transform.parent.up * (verticalOffset + footHeight);
+                Vector3 localVertical = transform.parent.up * (verticalOffset + footHeight/2);
+                Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.fixedDeltaTime, legAnimator.NewPosition + localVertical);
+
                 legAnimator.Transform.position = planarPos + localVertical;
 
                 if (legAnimator.Lerp >= 1f)
@@ -333,7 +334,11 @@ namespace Player.Animation
             }
             else
             {
+                legAnimator.Transform.position = legAnimator.SecondOrderDynamics.UpdatePosition(Time.fixedDeltaTime, legAnimator.OldPosition + GetFootHeight());
                 legAnimator.Transform.position = legAnimator.OldPosition + GetFootHeight();
+                Vector3 targetPos = legAnimator.OldPosition + GetFootHeight();
+
+                //legAnimator.Transform.position = Vector3.Lerp(legAnimator.Transform.position, targetPos, Time.deltaTime * 40f);
             }
         }
 

@@ -104,7 +104,7 @@ public class RaycastManager : MonoBehaviour
         if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             _hitList.TryAdd(leg.Name, hit);
-        }/*
+        }
         else
         {
             float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
@@ -120,7 +120,7 @@ public class RaycastManager : MonoBehaviour
                 } 
                 angle += footPlaneRotationAngle;
             }
-        }*/
+        }
     }
 
     /// <summary>
@@ -211,17 +211,24 @@ public class RaycastManager : MonoBehaviour
         var body = _rigidbody.transform;
         Vector3 offset = body.rotation * leg.RelativePosition;
         Vector3 anticipation = MovementDelta * stepAnticipationMultiplier;
-        Vector3 rotatedOffset = RotationDelta * offset;
+        // Assume RotationDelta is a quaternion representing some rotation delta
+        RotationDelta.ToAngleAxis(out float angle, out Vector3 axis);
+
+        float anticipatedAngle = angle * rotAnticipationMultiplier;
+
+        Quaternion anticipatedRotation = Quaternion.AngleAxis(anticipatedAngle, axis);
+
+        Vector3 rotatedOffset = anticipatedRotation * offset;
         //Vector3 rotAnt = (rotatedOffset - offset) * rotAnticipationMultiplier;
         Vector3 origin = body.position + rotatedOffset + anticipation;
-        /*
+        
         // Compute relative rotation of the projection
         Vector3 v = rotatedOffset + anticipation;
-        Vector3 axis = Vector3.Cross(v, body.up).normalized;
-        Vector3 tiltedV = Quaternion.AngleAxis(tiltAngleDeg, axis) * v;
+        Vector3 newAxis = Vector3.Cross(v, body.up).normalized;
+        Vector3 tiltedV = Quaternion.AngleAxis(tiltAngleDeg, newAxis) * v;
         Vector3 finalPos = body.position + tiltedV;
         Debug.DrawLine(body.position, finalPos, Color.red);
-*/
+
         return origin;
     }
     #endregion

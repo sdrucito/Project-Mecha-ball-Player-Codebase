@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Player.Animation;
 using Player.PlayerController;
 using UnityEngine;
@@ -191,7 +192,8 @@ namespace Player.ControlModules
         {
             var groundNormal = Player.Instance.GetGroundNormal();
             var projectedMove = ProjectedMove(_inputVector,groundNormal);
-            
+            if(Player.Instance.IsGrounded())
+                ApplyTouchGrounded();
             if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
                 Quaternion rotationAroundPlayer;
@@ -236,8 +238,9 @@ namespace Player.ControlModules
                 else
                     _wasBlocked = true;
             }
-            ApplyTouchGrounded();
+            
         }
+        
         private void ValidateMovement()
         {            
             // Verify the input movement is effectively moving the player
@@ -281,9 +284,36 @@ namespace Player.ControlModules
         
         private void ApplyTouchGrounded()
         {
-            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
-            _rigidbody.MovePosition(_rigidbody.position+attach * Time.fixedDeltaTime);
-            //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
+            //Vector3 attach = (Player.Instance.GetGroundNormal().normalized) * (0.1f * Gravity);
+            List<RaycastHit> contactPoints = Player.Instance.RaycastManager.GetHitList();
+            if (contactPoints.Count > 0)
+            {
+                bool sameNormal = true;
+                int index = 1;
+                RaycastHit groundNormal = contactPoints[0];
+                while (index < contactPoints.Count)
+                {
+                    if (contactPoints[index].normal != groundNormal.normal)
+                    {
+                        sameNormal = false;
+                        break;
+                    }
+
+                    index++;
+                }
+
+                if (sameNormal)
+                {
+                    Vector3 normal = groundNormal.normal;
+                    //Vector3 attach = _rigidbody.transform.up * (0.05f * Gravity);
+                    Vector3 attach = normal * (0.05f * Gravity);
+                    _rigidbody.MovePosition(_rigidbody.position+attach * Time.fixedDeltaTime);
+                    //_rigidbody.AddForce(attach, ForceMode.Impulse);
+                    Debug.DrawRay(transform.position, 100* attach * Time.fixedDeltaTime, Color.green,3f);
+                }
+                
+            }
+            
         }
         #endregion
         private void ApplyGravity()

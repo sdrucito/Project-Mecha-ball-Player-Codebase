@@ -50,7 +50,7 @@ namespace Player
 
         #region Contact & Collision Queues
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
-        private Queue<int> _collisionLayers = new Queue<int>();
+        private List<int> _collisionLayers = new List<int>();
         #endregion
 
         #region Public Properties
@@ -91,7 +91,7 @@ namespace Player
                 Debug.Log("In grounded hit list number: " + hits?.Count + " hit object " + hits);
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
-                    UpdateGroundNormal(hits, raycastManager);
+                    UpdateGroundNormal(hits);
             }
         }
 
@@ -145,7 +145,7 @@ namespace Player
         /// <summary>
         /// Updates terrain normal by averaging hit normals and triggers rotation.
         /// </summary>
-        private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
+        private void UpdateGroundNormal(List<RaycastHit> hits)
         {
             if (_isRotating) return;
             var normals = hits.ConvertAll(x => x.normal);
@@ -177,13 +177,13 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            if (Player.Instance.ControlModuleManager.GetActiveModuleName() == "Ball")
-            {
                 if (hitData.Layer == _groundLayer)
                     _groundNormal = GetCollisionNormal(hitData);
-                _collisionLayers.Enqueue(hitData.Layer);
-                UpdateGrounded();
-            }
+                _collisionLayers.Add(hitData.Layer);
+                if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+                {
+                    UpdateGrounded();
+                }
             
         }
 
@@ -192,18 +192,20 @@ namespace Player
         /// </summary>
         public void OnExitPhysicsUpdate(CollisionData hitData)
         {
-            if (Player.Instance.ControlModuleManager.GetActiveModuleName() == "Ball")
-            {
+            
+                Debug.Log("Enqueueing");
                 TryDequeueTerrain(hitData);
-                UpdateGrounded();
-            }
+                if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+                {
+                    UpdateGrounded();
+                }
             
         }
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            if (_collisionLayers.Count > 0)
-                _collisionLayers.Dequeue();
+            Debug.Log("Dequeueing");
+            _collisionLayers.Remove(hitData.Layer);
         }
         #endregion
 
