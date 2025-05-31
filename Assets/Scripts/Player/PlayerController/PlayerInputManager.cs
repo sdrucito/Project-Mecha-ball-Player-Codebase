@@ -16,7 +16,10 @@ namespace Player.PlayerController
         private InputAction _sprintImpulseAction;
         private InputAction _previousCameraAction;
         private InputAction _nextCameraAction;
-    
+
+        private const float ISOMETRIC_OFFSET = 45;
+        [SerializeField] private bool MouseEnabled = false;
+        
         public event Action<Vector2> OnMoveInput;
         public event Action<Vector2> OnLookInput;
         public event Action OnJumpInput;
@@ -54,7 +57,17 @@ namespace Player.PlayerController
         
             _moveAction.performed += ctx => _currentMoveInput = ctx.ReadValue<Vector2>();
             _moveAction.canceled += ctx => _currentMoveInput = Vector2.zero;
-            _lookAction.performed += ctx => _currentDirectionInput = ctx.ReadValue<Vector2>();
+            _lookAction.performed += ctx =>
+            {
+                var device = ctx.control.device;
+
+                if (!MouseEnabled && device is Mouse)
+                {
+                    return;
+                }
+
+                _currentDirectionInput = ctx.ReadValue<Vector2>();
+            };
             _lookAction.canceled += ctx => _currentDirectionInput = Vector2.zero;
             _jumpAction.started += ctx => OnJumpInput?.Invoke();
             _changeModeAction.started += ctx => OnModeChangeInput?.Invoke();
@@ -66,15 +79,17 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
-            var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+45);
+            var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnMoveInput?.Invoke(inputCameraRelative);
             if (_isSprintImpulse && _currentMoveInput != Vector2.zero)
             {
                 OnSprintImpulseInput?.Invoke(inputCameraRelative);
             }
             
-            var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle);
+            var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnLookInput?.Invoke(rotationCameraRelative);
+
+            UpdateCursorState();
         }
         
         private Vector2 RotateInput(Vector2 input, float angleDegrees)
@@ -87,6 +102,20 @@ namespace Player.PlayerController
                 input.x * cos - input.y * sin,
                 input.x * sin + input.y * cos
             );
+        }
+        
+        private void UpdateCursorState()
+        {
+            if (!MouseEnabled)
+            {
+                Cursor.visible = true;
+                Cursor.lockState = CursorLockMode.None;
+            }
+            else
+            {
+                Cursor.visible = false;
+                Cursor.lockState = CursorLockMode.Locked;
+            }
         }
         #endregion
 
