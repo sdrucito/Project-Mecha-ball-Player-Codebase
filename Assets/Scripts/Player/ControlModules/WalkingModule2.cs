@@ -192,37 +192,19 @@ namespace Player.ControlModules
         private void ExecuteMovement()
         {
             var groundNormal = Player.Instance.GetGroundNormal();
+            Debug.DrawLine(_rigidbody.position,_rigidbody.position + groundNormal * 2.0f, Color.red);
             var projectedMove = ProjectedMove(_inputVector,groundNormal);
             if(Player.Instance.IsGrounded())
                 ApplyTouchGrounded();
+            ExecuteRotation(projectedMove, groundNormal);
+
             if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
-                Quaternion rotationAroundPlayer;
-                if (_directionInputVector.magnitude < 0.01f) // auto
-                {
-                    if (projectedMove.magnitude > 0.01f)
-                        rotationAroundPlayer = Quaternion.LookRotation(projectedMove, groundNormal);
-                    else
-                        rotationAroundPlayer = transform.parent.rotation;
-                }
-                else // manual
-                {
-                    var projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
-                    rotationAroundPlayer = Quaternion.LookRotation(projectedDirection, groundNormal);
-                }
-                
-                var rotationSpeed = (_directionInputVector.magnitude < 0.01f) ? RotationSpeed : RotationSpeed * ManualRotationMultiplier;
-
-                transform.parent.rotation = Quaternion.RotateTowards(
-                    transform.parent.rotation,
-                    rotationAroundPlayer,
-                    rotationSpeed * Time.fixedDeltaTime
-                );
-                if (Player.Instance.PhysicsModule &&
-                    Quaternion.Angle(transform.parent.rotation, rotationAroundPlayer) < 0.01f)
-                {
-                    Player.Instance.PhysicsModule.OnRotatingEnd();
-                }
+                Player.Instance.RaycastManager.MovementDelta = Vector3.zero;
+                Player.Instance.RaycastManager.RotationDelta = Quaternion.identity;
+                PlayerKneeWalkAnimator.ExecuteGrounded(); 
+                groundNormal = Player.Instance.GetGroundNormal();
+                projectedMove = ProjectedMove(_inputVector, groundNormal);
                 
                 _lastFixedRotationApplied = GetPredictedRotation();     // Re-call the prediction that now is "real"
                 
@@ -241,7 +223,41 @@ namespace Player.ControlModules
             }
             
         }
-        
+
+        private void ExecuteRotation(Vector3 projectedMove, Vector3 groundNormal)
+        {
+            Debug.Log("Executing Rotation");
+            Quaternion rotationAroundPlayer;
+            if (_directionInputVector.magnitude < 0.01f) // auto
+            {
+                if (projectedMove.magnitude > 0.01f)
+                {
+                    rotationAroundPlayer = Quaternion.LookRotation(projectedMove, groundNormal);
+                }
+                else
+                    rotationAroundPlayer = transform.parent.rotation;
+                
+            }
+            else // manual
+            {
+                var projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
+                rotationAroundPlayer = Quaternion.LookRotation(projectedDirection, groundNormal);
+            }
+                
+            var rotationSpeed = (_directionInputVector.magnitude < 0.01f) ? RotationSpeed : RotationSpeed * ManualRotationMultiplier;
+
+            transform.parent.rotation = Quaternion.RotateTowards(
+                transform.parent.rotation,
+                rotationAroundPlayer,
+                rotationSpeed * Time.fixedDeltaTime
+            );
+            if (Player.Instance.PhysicsModule &&
+                Quaternion.Angle(transform.parent.rotation, rotationAroundPlayer) < 0.01f)
+            {
+                Player.Instance.PhysicsModule.OnRotatingEnd();
+            }
+        }
+
         private void ValidateMovement()
         {            
             // Verify the input movement is effectively moving the player
@@ -297,11 +313,22 @@ namespace Player.ControlModules
                 }
             }
 
-            if (allNormalsEqual) {
-                Vector3 attach = groundHit.normal * (0.05f * Gravity);
+            
+            bool isRotating = Player.Instance.PhysicsModule.IsRotating;
+            if (allNormalsEqual || isRotating)
+            {
+                Vector3 attach;
+                if(isRotating)
+                    attach = Player.Instance.GetGroundNormal() * (0.1f * Gravity);
+                else
+                    attach = groundHit.normal * (0.1f * Gravity);
                 _rigidbody.MovePosition(_rigidbody.position + attach * Time.fixedDeltaTime);
-                Debug.DrawRay(transform.position, attach * (100 * Time.fixedDeltaTime), Color.green, 3f);
+                _rigidbody.AddForce(attach*10f, ForceMode.Impulse);
+                _lastFixedMovementApplied += attach * Time.fixedDeltaTime;
+                //if(Player.Instance.PhysicsModule.IsRotating)
+                    //Debug.DrawRay(transform.position, attach * (100 * Time.fixedDeltaTime), Color.green, 3f);
             }
+            
         }
         #endregion
         private void ApplyGravity()

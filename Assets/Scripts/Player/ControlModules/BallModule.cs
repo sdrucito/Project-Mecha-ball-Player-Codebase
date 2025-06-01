@@ -37,6 +37,7 @@ namespace Player.ControlModules
             _rigidbody.linearDamping = OverrideLinearDrag;
             _rigidbody.angularDamping = OverrideAngularDrag;
             _rigidbody.WakeUp();
+            Player.Instance.PhysicsModule.InjectGroundLayer();
         }
 
         public void OnDisable()

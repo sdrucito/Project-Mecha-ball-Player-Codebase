@@ -110,23 +110,43 @@ public class RaycastManager : MonoBehaviour
         else
         {
             //float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
-            for (int i = 0; i < footPlaneSteps; i++)
+            SweepGroundedForLeg(leg);
+        }
+    }
+
+    private void SweepGroundedForLeg(LegAnimator leg)
+    {
+        Vector3 origin;
+        Ray ray;
+        RaycastHit hit;
+        for (int i = 0; i < footPlaneSteps; i++)
+        {
+            float stepIndex = i - (footPlaneSteps - 1) * 0.5f;
+            float angle = stepIndex * footPlaneRotationAngle;
+            origin = ComputeLegPositionForStep(leg, angle - 25.0f);
+            Vector3 legDirection = origin - _rigidbody.position;
+            // double‐cross gives you the projection of down onto the plane ⟂ legDir
+            Vector3 newDownDirection    = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
+            Debug.DrawLine(origin, origin + newDownDirection * jumpHeight, Color.blue, 1f);
+            //Debug.DrawLine(origin, origin -_rigidbody.transform.up * jumpHeight, Color.blue, 1.0f);
+            ray = new Ray(origin, newDownDirection);
+            if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
             {
-                float stepIndex    = i - (footPlaneSteps - 1) * 0.5f;
-                float angle        = stepIndex * footPlaneRotationAngle;
-                origin = ComputeLegPositionForStep(leg, angle);
-                Vector3 legDirection = origin - _rigidbody.position;
-                // double‐cross gives you the projection of down onto the plane ⟂ legDir
-                Vector3 newDownDirection    = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
-                Debug.DrawLine(origin, origin + newDownDirection * jumpHeight, Color.blue, 1f);
-                //Debug.DrawLine(origin, origin -_rigidbody.transform.up * jumpHeight, Color.blue, 1.0f);
-                ray = new Ray(origin, newDownDirection);
-                if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-                {
-                    _hitList.TryAdd(leg.Name, hit);
-                    break;
-                } 
-            }
+                _hitList.TryAdd(leg.Name, hit);
+                break;
+            } 
+        }
+    }
+    
+    public bool GetLegHit(string legName, out RaycastHit hit)
+    {
+        if (_hitList.TryGetValue(legName, out hit))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
 

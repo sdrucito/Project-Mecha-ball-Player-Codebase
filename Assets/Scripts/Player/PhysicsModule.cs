@@ -88,7 +88,6 @@ namespace Player
             if (controlModule != null && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
             {
                 var hits = raycastManager?.GetHitList();
-                //Debug.Log("In grounded hit list number: " + hits?.Count + " hit object " + hits);
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
                     UpdateGroundNormal(hits);
@@ -102,7 +101,6 @@ namespace Player
         {
             if (!_isGrounded)
             {
-                Debug.Log("NOT GROUNDED");
                 return false;
             }
             if (movement.magnitude <= 0f)
@@ -121,15 +119,9 @@ namespace Player
             return sumCorrelation > minCorrelationForTransition;
         }
 
-        /// <summary>
-        /// Handles falling behaviour by applying downward weight movement and switching mode.
-        /// </summary>
-        private void Fall()
+        public void InjectGroundLayer()
         {
-            //var characterController = Player.Instance.CharacterController;
-            var movementDirection = Player.Instance.RaycastManager.GetMovementDelta();
-            // apply gravity-influenced movement here as needed
-            Player.Instance.ControlModuleManager.SwitchMode();
+            _collisionLayers.Add(_groundLayer);
         }
 
         /// <summary>
@@ -147,7 +139,7 @@ namespace Player
         /// </summary>
         private void UpdateGroundNormal(List<RaycastHit> hits)
         {
-            if (_isRotating) return;
+            //if (_isRotating) return;
             var normals = hits.ConvertAll(x => x.normal);
             Vector3 newNormal = AverageDirection(normals);
             if (newNormal != _groundNormal)
@@ -166,7 +158,9 @@ namespace Player
                 return Vector3.zero;
             Vector3 sum = Vector3.zero;
             foreach (var v in vectors)
+            {
                 sum += v.normalized;
+            }
             return sum.sqrMagnitude < Mathf.Epsilon ? Vector3.zero : sum.normalized;
         }
         #endregion
@@ -177,14 +171,13 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+            {
                 if (hitData.Layer == _groundLayer)
                     _groundNormal = GetCollisionNormal(hitData);
                 _collisionLayers.Add(hitData.Layer);
-                if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
-                {
-                    UpdateGrounded();
-                }
-            
+                UpdateGrounded();
+            }
         }
 
         /// <summary>
@@ -193,11 +186,11 @@ namespace Player
         public void OnExitPhysicsUpdate(CollisionData hitData)
         {
             
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+            {
                 TryDequeueTerrain(hitData);
-                if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
-                {
-                    UpdateGrounded();
-                }
+                UpdateGrounded();
+            }
             
         }
 
@@ -220,7 +213,11 @@ namespace Player
         /// <summary>
         /// Returns the current averaged ground normal.
         /// </summary>
-        public Vector3 GetGroundNormal() => _groundNormal;
+        public Vector3 GetGroundNormal()
+        {
+            SetWalkGrounded();
+            return _groundNormal;
+        }
 
         private void UpdateGrounded()
         {
@@ -265,21 +262,21 @@ namespace Player
         /// </summary>
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
-            // 1) Get both vectors into the same coordinate space (let's pick local):
+            // Get both vectors into the same coordinate space:
             Vector3 toP  = transform.InverseTransformPoint(point);
             Vector3 vel = transform.InverseTransformDirection(velocity);
 
-            // 2) Drop the up‐component
+            // Drop the up‐component
             toP.y  = 0f;
             vel.y = 0f;
 
-            // 3) Whiten (i.e. scale X and Z by the inverse‐half‐extents):
+            // Whiten
             toP.x *= _whitenScale.x;
             toP.z *= _whitenScale.y;
             vel.x *= _whitenScale.x;
             vel.z *= _whitenScale.y;
 
-            // 4) Normalize and dot
+            // Normalize and dot
             toP.Normalize();
             vel.Normalize();
             return Vector3.Dot(toP, vel);
