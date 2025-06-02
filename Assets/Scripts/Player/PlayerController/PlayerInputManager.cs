@@ -17,6 +17,8 @@ namespace Player.PlayerController
         private InputAction _previousCameraAction;
         private InputAction _nextCameraAction;
 
+        public bool IsCameraTransition { get; set; } = false;
+        private InputActionMap _playerMap;
         private const float ISOMETRIC_OFFSET = 45;
         [SerializeField] private bool MouseEnabled = false;
         
@@ -47,6 +49,13 @@ namespace Player.PlayerController
             }
 
             _playerInput = GetComponent<PlayerInput>();
+            _playerMap = _playerInput.actions.FindActionMap("Player");
+            if (_playerMap == null)
+            {
+                Debug.LogWarning("Player action map not found!");
+                return;
+            }
+
             _moveAction = _playerInput.actions.FindAction("Move");
             _lookAction = _playerInput.actions.FindAction("Look");
             _jumpAction = _playerInput.actions.FindAction("Jump");
@@ -79,6 +88,15 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
+            if (IsCameraTransition && _playerMap.enabled)
+            {
+                _playerMap.Disable();
+            }
+            else if (!IsCameraTransition && !_playerMap.enabled)
+            {
+                _playerMap.Enable();
+            }
+            
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnMoveInput?.Invoke(inputCameraRelative);
             if (_isSprintImpulse && _currentMoveInput != Vector2.zero)

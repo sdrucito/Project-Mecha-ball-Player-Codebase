@@ -225,7 +225,7 @@ namespace Player.ControlModules
 
         private void ExecuteRotation(Vector3 projectedMove, Vector3 groundNormal)
         {
-            Debug.Log("Executing Rotation");
+            //Debug.Log("Executing Rotation");
             Quaternion rotationAroundPlayer;
             if (_directionInputVector.magnitude < 0.01f) // auto
             {
