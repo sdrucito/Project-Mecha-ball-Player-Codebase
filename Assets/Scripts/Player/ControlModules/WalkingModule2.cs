@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Player.Animation;
 using Player.PlayerController;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
@@ -16,7 +15,7 @@ namespace Player.ControlModules
         
         [SerializeField] private float WalkingSpeed = 5f;
         [SerializeField] private float Gravity = -9.8f;
-        [SerializeField] private float RotationSpeedOnSlope = 80f;
+        //[SerializeField] private float RotationSpeedOnSlope = 80f; //not used
         [SerializeField] private float RotationSpeed = 40f;
         [SerializeField] private float ManualRotationMultiplier = 2f;
         
@@ -246,11 +245,11 @@ namespace Player.ControlModules
                 
             var rotationSpeed = (_directionInputVector.magnitude < 0.01f) ? RotationSpeed : RotationSpeed * ManualRotationMultiplier;
 
-            transform.parent.rotation = Quaternion.RotateTowards(
+            _rigidbody.MoveRotation(Quaternion.RotateTowards(
                 transform.parent.rotation,
                 rotationAroundPlayer,
                 rotationSpeed * Time.fixedDeltaTime
-            );
+            ));
             if (Player.Instance.PhysicsModule &&
                 Quaternion.Angle(transform.parent.rotation, rotationAroundPlayer) < 0.01f)
             {
@@ -330,7 +329,6 @@ namespace Player.ControlModules
             }
             
         }
-        #endregion
         private void ApplyGravity()
         {
             if (!Player.Instance.IsGrounded())
@@ -348,7 +346,8 @@ namespace Player.ControlModules
                 _rigidbody.MovePosition(_rigidbody.position + fall);
             }
         }
-        
+        #endregion
+
         #region static methods
         // <summary>
         /// Given the input from PlayerInputManager and the normal from PhysicsModule, calculate the best projected 
