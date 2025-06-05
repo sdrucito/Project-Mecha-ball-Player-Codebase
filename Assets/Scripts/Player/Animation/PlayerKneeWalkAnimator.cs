@@ -48,6 +48,8 @@ namespace Player.Animation
         [Header("Animation Curve & Center")]
         [SerializeField] private AnimationCurve legAnimationCurve;
         [SerializeField] private Transform center;
+        [Header("Sound & VFX")]
+        [SerializeField] private PlayerSound playerSound;
         #endregion
 
         #region IK Targets
@@ -210,6 +212,8 @@ namespace Player.Animation
             {
                 _currentGroup = StepGroup.Idle;
                 ReturnLegToIdle();
+                playerSound.LegMove();
+                playerSound.Step();
             }
             else
             {
@@ -222,11 +226,19 @@ namespace Player.Animation
                 {
                     _currentGroup = StepGroup.GroupB;
                     StartStepForGroup(_currentGroup);
+                    
+                    //playerSound.Step();
+                    playerSound.LegMove();
+
                 }
                 else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(StepGroup.GroupB))
                 {
                     _currentGroup = StepGroup.GroupA;
                     StartStepForGroup(_currentGroup);
+                    
+                    //playerSound.Step();
+                    playerSound.LegMove();
+
                 }
             }
             MoveLegs(_currentGroup);
@@ -340,8 +352,13 @@ namespace Player.Animation
         private void MoveLegStep(LegAnimator legAnimator)
         {
             if (legAnimator.NewPosition == Vector3.zero)
-                legAnimator.NewPosition = legAnimator.OldPosition;
-
+                legAnimator.NewPosition = legAnimator.OldPosition + GetFootHeight();
+            
+            if (legAnimator.Lerp == 0.0f)
+            {
+                // Step just started
+                //playerSound.LegMove();
+            }
             if (legAnimator.Lerp < 1f)
             {
                 legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.fixedDeltaTime * stepSpeed, 1f);
@@ -354,7 +371,11 @@ namespace Player.Animation
                 legAnimator.Transform.position = planarPos + localVertical;
 
                 if (legAnimator.Lerp >= 1f)
+                {
+                    // Step ended
                     legAnimator.OldPosition = legAnimator.NewPosition;
+                    playerSound.Step();
+                }
             }
             else
             {
@@ -529,6 +550,7 @@ namespace Player.Animation
             }
             legRig.weight = 1f;
             _currentGroup = StepGroup.Idle;
+            ReturnLegToIdle();
             OnOpenFinished?.Invoke();
         }
 
@@ -544,10 +566,10 @@ namespace Player.Animation
                 rm.ExecuteResetPosition(_frontRightFootAnim);
                 rm.ExecuteResetPosition(_rearLeftFootAnim);
                 rm.ExecuteResetPosition(_rearRightFootAnim);
-                secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
-                secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
-                secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
-                secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
+                secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position + GetFootHeight());
+                secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position + GetFootHeight());
+                secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position + GetFootHeight());
+                secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position + GetFootHeight());
                 _currentGroup = StepGroup.Idle;
                 _wasMoving = false;
                 ReturnLegToIdle();

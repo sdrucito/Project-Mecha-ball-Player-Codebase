@@ -66,7 +66,6 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 OpenFinished();
                 PlayerKneeWalkAnimator.enabled = true;
-                PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
                 
                 if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
                 _rigidbody.linearDamping = OverrideLinearDrag;
@@ -99,6 +98,8 @@ namespace Player.ControlModules
             _lastFixedRotationApplied = Quaternion.identity;
             _lastRotation = Player.Instance.Rigidbody.rotation;
             if (_rigidbody) _rigidbody.isKinematic = false;
+            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;
