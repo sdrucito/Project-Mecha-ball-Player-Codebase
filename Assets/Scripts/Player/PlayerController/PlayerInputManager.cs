@@ -8,7 +8,8 @@ namespace Player.PlayerController
     {
         public static PlayerInputManager Instance;
         private PlayerInput _playerInput;
-    
+        private InputActionMap _playerMap;
+  
         private InputAction _moveAction;
         private InputAction _lookAction;
         private InputAction _jumpAction;
@@ -18,8 +19,9 @@ namespace Player.PlayerController
         private InputAction _nextCameraAction;
 
         public bool IsCameraTransition { get; set; } = false;
-        private InputActionMap _playerMap;
         private const float ISOMETRIC_OFFSET = 45;
+
+        [SerializeField] private bool BallImpulseOnMove = true;
         [SerializeField] private bool MouseEnabled = false;
         
         public event Action<Vector2> OnMoveInput;
@@ -99,11 +101,18 @@ namespace Player.PlayerController
             
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnMoveInput?.Invoke(inputCameraRelative);
-            if (_isSprintImpulse && _currentMoveInput != Vector2.zero)
+            if (BallImpulseOnMove)
             {
                 OnSprintImpulseInput?.Invoke(inputCameraRelative);
             }
-            
+            else 
+            {
+                if (_isSprintImpulse && _currentMoveInput != Vector2.zero)
+                {
+                    OnSprintImpulseInput?.Invoke(inputCameraRelative);
+                }
+            }
+
             var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnLookInput?.Invoke(rotationCameraRelative);
 
