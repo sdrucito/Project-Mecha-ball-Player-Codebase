@@ -9,6 +9,31 @@ using UnityEngine.Serialization;
 
 namespace Player.Animation
 {
+    
+    [System.Serializable]
+    public class LegAnimator
+    {
+    
+        public Transform Transform;
+        public float Lerp;
+        public Vector3 NewPosition;
+        public Vector3 OldPosition;
+        public SecondOrderDynamics SecondOrderDynamics;
+        public Vector3 RelativePosition;
+        public string Name;
+
+        public LegAnimator(Transform transform, float lerp, Vector3 newPosition, Vector3 oldPosition, SecondOrderDynamics secondOrderDynamics, Vector3 relativePosition, string name)
+        {
+            Transform = transform;
+            Lerp = lerp;
+            NewPosition = newPosition;
+            OldPosition = oldPosition;
+            SecondOrderDynamics = secondOrderDynamics;
+            RelativePosition = relativePosition;
+            Name = name;
+        }
+
+    }
     /// <summary>
     /// Component that manages the procedural animation for the player's knee-walking movement,
     /// coordinating leg IK targets, stepping timing, and rig weight.
@@ -23,6 +48,8 @@ namespace Player.Animation
         [Header("Animation Curve & Center")]
         [SerializeField] private AnimationCurve legAnimationCurve;
         [SerializeField] private Transform center;
+        [Header("Sound & VFX")]
+        [SerializeField] private PlayerSound playerSound;
         #endregion
 
         #region IK Targets
@@ -133,7 +160,7 @@ namespace Player.Animation
         public void BuildWhitenScale()
         {
             var localPositions = _legs
-                .Select(l => transform.InverseTransformPoint(l.Transform.position))
+                .Select(l => transform.parent.transform.InverseTransformPoint(l.Transform.position))
                 .ToList();
             float minX = localPositions.Min(p => p.x);
             float maxX = localPositions.Max(p => p.x);
@@ -185,6 +212,8 @@ namespace Player.Animation
             {
                 _currentGroup = StepGroup.Idle;
                 ReturnLegToIdle();
+                playerSound.LegMove();
+                playerSound.Step();
             }
             else
             {
@@ -197,14 +226,21 @@ namespace Player.Animation
                 {
                     _currentGroup = StepGroup.GroupB;
                     StartStepForGroup(_currentGroup);
+                    
+                    //playerSound.Step();
+                    playerSound.LegMove();
+
                 }
                 else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(StepGroup.GroupB))
                 {
                     _currentGroup = StepGroup.GroupA;
                     StartStepForGroup(_currentGroup);
+                    
+                    //playerSound.Step();
+                    playerSound.LegMove();
+
                 }
             }
-
             MoveLegs(_currentGroup);
 
             _wasMoving = isMoving;
@@ -316,24 +352,60 @@ namespace Player.Animation
         private void MoveLegStep(LegAnimator legAnimator)
         {
             if (legAnimator.NewPosition == Vector3.zero)
-                legAnimator.NewPosition = legAnimator.OldPosition;
-
+                legAnimator.NewPosition = legAnimator.OldPosition + GetFootHeight();
+            
+            if (legAnimator.Lerp == 0.0f)
+            {
+                // Step just started
+                //playerSound.LegMove();
+            }
             if (legAnimator.Lerp < 1f)
             {
-                legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.deltaTime * stepSpeed, 1f);
+                legAnimator.Lerp = Mathf.Min(legAnimator.Lerp + Time.fixedDeltaTime * stepSpeed, 1f);
                 float t = legAnimationCurve.Evaluate(legAnimator.Lerp);
                 float verticalOffset = Mathf.Sin(t * Mathf.PI) * stepHeight;
 
-                Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.deltaTime, legAnimator.NewPosition);
-                Vector3 localVertical = transform.parent.up * (verticalOffset + footHeight);
+                Vector3 localVertical = transform.parent.up * (verticalOffset + footHeight/2);
+                Vector3 planarPos = legAnimator.SecondOrderDynamics.UpdatePosition(Time.fixedDeltaTime, legAnimator.NewPosition + localVertical);
+
                 legAnimator.Transform.position = planarPos + localVertical;
 
                 if (legAnimator.Lerp >= 1f)
+                {
+                    // Step ended
                     legAnimator.OldPosition = legAnimator.NewPosition;
+                    playerSound.Step();
+                }
             }
             else
             {
+                //SnapLegToPosition(legAnimator);
+                legAnimator.Transform.position = legAnimator.SecondOrderDynamics.UpdatePosition(Time.fixedDeltaTime, legAnimator.OldPosition + GetFootHeight());
                 legAnimator.Transform.position = legAnimator.OldPosition + GetFootHeight();
+                //Vector3 targetPos = legAnimator.OldPosition + GetFootHeight();
+                
+            }
+        }
+
+        private void SnapLegToPosition(LegAnimator legAnimator)
+        {
+            Vector3 rawTarget = legAnimator.OldPosition;
+            RaycastHit hit;
+            if (Player.Instance.RaycastManager.GetLegHit(legAnimator.Name, out hit))
+            {
+                Vector3 hitPoint = hit.point;
+                Vector3 upDir = transform.parent.up;  
+                float signedDistance = Vector3.Dot(rawTarget - hitPoint, upDir);
+                Debug.Log("Signed distance: " + signedDistance);
+                if (signedDistance < 0f)
+                {
+                    // rawTarget is “under” hitPoint along the parent‐up direction → clamp it
+                    rawTarget = hitPoint + upDir * 0.001f;
+                }
+
+                legAnimator.Transform.position = rawTarget + GetFootHeight();
+                //legAnimator.Transform.position = Vector3.Lerp(legAnimator.Transform.position, rawTarget, Time.deltaTime * 40f);
+
             }
         }
 
@@ -478,6 +550,7 @@ namespace Player.Animation
             }
             legRig.weight = 1f;
             _currentGroup = StepGroup.Idle;
+            ReturnLegToIdle();
             OnOpenFinished?.Invoke();
         }
 
@@ -493,10 +566,10 @@ namespace Player.Animation
                 rm.ExecuteResetPosition(_frontRightFootAnim);
                 rm.ExecuteResetPosition(_rearLeftFootAnim);
                 rm.ExecuteResetPosition(_rearRightFootAnim);
-                secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
-                secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
-                secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
-                secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
+                secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position + GetFootHeight());
+                secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position + GetFootHeight());
+                secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position + GetFootHeight());
+                secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position + GetFootHeight());
                 _currentGroup = StepGroup.Idle;
                 _wasMoving = false;
                 ReturnLegToIdle();
@@ -524,6 +597,18 @@ namespace Player.Animation
             leg.OldPosition = resetPos;
             leg.NewPosition = resetPos;
             leg.Lerp = 1f;
+        }
+
+        public List<Vector3> GetActualGroundNormals()
+        {
+            List<Vector3> normals = new List<Vector3>();
+
+            foreach (var leg in _legs)
+            {
+                normals.Add(leg.Transform.up);
+            }
+
+            return normals;
         }
     }
 }

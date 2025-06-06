@@ -29,7 +29,7 @@ namespace Player.PlayerController
         {
             GetAvailableControlModules();
             _actualModule = 0;
-            _previousModule = 0;
+            _previousModule = 1;
         }
 
         private void Start()
@@ -84,10 +84,6 @@ namespace Player.PlayerController
             DeactivateAllModules();
             IsSwitching = true;
             _modules[_actualModule].OnActivated?.Invoke();
-        }
-        public void ActivateKinematic()
-        {
-            Player.Instance.Rigidbody.isKinematic = true;
         }
 
         private int GetNextModule()

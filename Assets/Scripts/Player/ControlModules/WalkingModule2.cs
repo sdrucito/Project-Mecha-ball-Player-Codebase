@@ -1,34 +1,35 @@
 using System;
+using System.Collections.Generic;
 using Player.Animation;
 using Player.PlayerController;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
 namespace Player.ControlModules
 {
-    public class WalkingModule : ControlModule, IFixedUpdateObserver
+    public class WalkingModule2 : ControlModule, IFixedUpdateObserver
     {
         public int FixedUpdatePriority { get; set; }
         
         [SerializeField] private float WalkingSpeed = 5f;
         [SerializeField] private float Gravity = -9.8f;
-        [SerializeField] private float RotationSpeedOnSlope = 80f;
+        //[SerializeField] private float RotationSpeedOnSlope = 80f; //not used
         [SerializeField] private float RotationSpeed = 40f;
         [SerializeField] private float ManualRotationMultiplier = 2f;
         
         private float _verticalVelocity=0;
         private bool _wasBlocked = false;
         private Quaternion _currentRotation;
-        private Quaternion _targetRotation = Quaternion.identity;
         
         private Vector2 _inputVector = Vector2.zero;
         private Vector2 _directionInputVector = Vector2.zero;
         
         [SerializeField] private PlayerKneeWalkAnimator PlayerKneeWalkAnimator;
-        private CharacterController _controller;
+        private Rigidbody _rigidbody;
+        [SerializeField] private float OverrideLinearDrag;
+        [SerializeField] private float OverrideAngularDrag;
 
         private Vector3 _lastFixedMovementDelta;
         private Vector3 _lastFixedMovementApplied;
@@ -47,6 +48,7 @@ namespace Player.ControlModules
 
         private void Start()
         {
+            _rigidbody = Player.Instance.Rigidbody;
             PlayerKneeWalkAnimator.OnOpenFinished += OpenFinished;
             _lastPosition = Player.Instance.Rigidbody.position;
             _lastFixedMovementApplied = Vector3.zero;
@@ -64,7 +66,11 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 OpenFinished();
                 PlayerKneeWalkAnimator.enabled = true;
-                PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+                
+                if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
+                _rigidbody.linearDamping = OverrideLinearDrag;
+                _rigidbody.angularDamping = OverrideAngularDrag;
+                _rigidbody.WakeUp();
             }
         }
 
@@ -83,9 +89,6 @@ namespace Player.ControlModules
         #region Input Handlers
         private void OpenFinished()
         {
-            if(_controller)
-                _controller.enabled = true;
-            
             // Reset movement delta
             _lastFixedMovementDelta = Vector3.zero;
             _lastFixedMovementApplied = Vector3.zero;
@@ -94,7 +97,9 @@ namespace Player.ControlModules
             _lastFixedRotationDelta = Quaternion.identity;
             _lastFixedRotationApplied = Quaternion.identity;
             _lastRotation = Player.Instance.Rigidbody.rotation;
-            
+            if (_rigidbody) _rigidbody.isKinematic = false;
+            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+
         }
         private void HandleMovement(Vector2 input){
             _inputVector = input;
@@ -123,7 +128,6 @@ namespace Player.ControlModules
             // Post-movement phase
             ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
             PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
-            
             ApplyGravity();
         }
         
@@ -188,54 +192,72 @@ namespace Player.ControlModules
         private void ExecuteMovement()
         {
             var groundNormal = Player.Instance.GetGroundNormal();
+            Debug.DrawLine(_rigidbody.position,_rigidbody.position + groundNormal * 2.0f, Color.red);
             var projectedMove = ProjectedMove(_inputVector,groundNormal);
-            
+            if(Player.Instance.IsGrounded())
+                ApplyTouchGrounded();
+            ExecuteRotation(projectedMove, groundNormal);
+
             if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
-                Quaternion rotationAroundPlayer;
-                if (_directionInputVector.magnitude < 0.01f) // auto
-                {
-                    if (projectedMove.magnitude > 0.01f)
-                        rotationAroundPlayer = Quaternion.LookRotation(projectedMove, groundNormal);
-                    else
-                        rotationAroundPlayer = transform.parent.rotation;
-                }
-                else // manual
-                {
-                    var projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
-                    rotationAroundPlayer = Quaternion.LookRotation(projectedDirection, groundNormal);
-                }
+                Player.Instance.RaycastManager.MovementDelta = Vector3.zero;
+                Player.Instance.RaycastManager.RotationDelta = Quaternion.identity;
+                PlayerKneeWalkAnimator.ExecuteGrounded(); 
+                groundNormal = Player.Instance.GetGroundNormal();
+                projectedMove = ProjectedMove(_inputVector, groundNormal);
                 
-                var rotationSpeed = (_directionInputVector.magnitude < 0.01f) ? RotationSpeed : RotationSpeed * ManualRotationMultiplier;
-
-                transform.parent.rotation = Quaternion.RotateTowards(
-                    transform.parent.rotation,
-                    rotationAroundPlayer,
-                    rotationSpeed * Time.fixedDeltaTime
-                );
-                if (Player.Instance.PhysicsModule &&
-                    Quaternion.Angle(transform.parent.rotation, rotationAroundPlayer) < 0.01f)
-                {
-                    Player.Instance.PhysicsModule.OnRotatingEnd();
-                }
-                
-                _targetRotation = rotationAroundPlayer;
                 _lastFixedRotationApplied = GetPredictedRotation();     // Re-call the prediction that now is "real"
                 
                 var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
                 if(moveDirection != Vector3.zero)
-                    _controller.Move(moveDirection);
+                    _rigidbody.MovePosition(_rigidbody.position + moveDirection);
                 
                 // Update the last movement applied by the user
                 _lastFixedMovementApplied = moveDirection;
             }else {
+                Debug.Log("Blocked movement");
                 if(_wasBlocked)
                     _wasBlocked = false;
                 else
                     _wasBlocked = true;
             }
-            ApplyTouchGrounded();
+            
         }
+
+        private void ExecuteRotation(Vector3 projectedMove, Vector3 groundNormal)
+        {
+            Debug.Log("Executing Rotation");
+            Quaternion rotationAroundPlayer;
+            if (_directionInputVector.magnitude < 0.01f) // auto
+            {
+                if (projectedMove.magnitude > 0.01f)
+                {
+                    rotationAroundPlayer = Quaternion.LookRotation(projectedMove, groundNormal);
+                }
+                else
+                    rotationAroundPlayer = transform.parent.rotation;
+                
+            }
+            else // manual
+            {
+                var projectedDirection = ProjectedMove(_directionInputVector, groundNormal);
+                rotationAroundPlayer = Quaternion.LookRotation(projectedDirection, groundNormal);
+            }
+                
+            var rotationSpeed = (_directionInputVector.magnitude < 0.01f) ? RotationSpeed : RotationSpeed * ManualRotationMultiplier;
+
+            _rigidbody.MoveRotation(Quaternion.RotateTowards(
+                transform.parent.rotation,
+                rotationAroundPlayer,
+                rotationSpeed * Time.fixedDeltaTime
+            ));
+            if (Player.Instance.PhysicsModule &&
+                Quaternion.Angle(transform.parent.rotation, rotationAroundPlayer) < 0.01f)
+            {
+                Player.Instance.PhysicsModule.OnRotatingEnd();
+            }
+        }
+
         private void ValidateMovement()
         {            
             // Verify the input movement is effectively moving the player
@@ -276,24 +298,57 @@ namespace Player.ControlModules
 
             return projectedMove;
         }
-        
-        private void ApplyTouchGrounded()
-        {
-            Vector3 attach = (Player.Instance.GetGroundNormal()) * (0.1f * Gravity);
-            _controller.Move(attach * Time.fixedDeltaTime);
-            //Debug.DrawRay(transform.position, attach * Time.fixedDeltaTime, Color.green,3f);
+
+        private void ApplyTouchGrounded() {
+            List<RaycastHit> contactPoints = Player.Instance.RaycastManager.GetHitList();
+            if (contactPoints.Count <= 0) return; //floating
+
+            var allNormalsEqual = true;
+            RaycastHit groundHit = contactPoints[0];
+            for (var i = 1; i < contactPoints.Count; i++) {
+                if (Vector3.Angle(contactPoints[i].normal, groundHit.normal) > 1f) // 1° degree of tollerance
+                {
+                    allNormalsEqual = false;
+                    break;
+                }
+            }
+
+            
+            bool isRotating = Player.Instance.PhysicsModule.IsRotating;
+            if (allNormalsEqual || isRotating)
+            {
+                Vector3 attach;
+                if(isRotating)
+                    attach = Player.Instance.GetGroundNormal() * (0.1f * Gravity);
+                else
+                    attach = groundHit.normal * (0.1f * Gravity);
+                _rigidbody.MovePosition(_rigidbody.position + attach * Time.fixedDeltaTime);
+                _rigidbody.AddForce(attach*10f, ForceMode.Impulse);
+                _lastFixedMovementApplied += attach * Time.fixedDeltaTime;
+                //if(Player.Instance.PhysicsModule.IsRotating)
+                    //Debug.DrawRay(transform.position, attach * (100 * Time.fixedDeltaTime), Color.green, 3f);
+            }
+            
         }
-        #endregion
         private void ApplyGravity()
         {
             if (!Player.Instance.IsGrounded())
             {
                 _verticalVelocity += Gravity * Time.fixedDeltaTime;
-                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f);
-                _controller.Move(fall * Time.fixedDeltaTime);
-            } 
+            }
+            else if (_verticalVelocity < 0f)
+            {
+                _verticalVelocity = 0f;
+            }
+
+            if (_verticalVelocity != 0f)
+            {
+                Vector3 fall = new Vector3(0f, _verticalVelocity, 0f) * Time.fixedDeltaTime;
+                _rigidbody.MovePosition(_rigidbody.position + fall);
+            }
         }
-        
+        #endregion
+
         #region static methods
         // <summary>
         /// Given the input from PlayerInputManager and the normal from PhysicsModule, calculate the best projected 

@@ -14,15 +14,17 @@ namespace Player
         public Collision CollisionInfo;
         public int Layer;
         public string Tag;
+        public float VelocityMagnitude;
 
         /// <summary>
         /// Constructs collision data record from collision event parameters.
         /// </summary>
-        public CollisionData(Collision collisionInfo, int layer, string tag)
+        public CollisionData(Collision collisionInfo, int layer, string tag, float velocityMagnitude)
         {
             CollisionInfo = collisionInfo;
             Layer = layer;
             Tag = tag;
+            VelocityMagnitude = velocityMagnitude;
         }
     }
 
@@ -44,11 +46,13 @@ namespace Player
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
         private Vector2 _whitenScale = Vector2.one;
+        private Vector3 _savedPosition = Vector3.zero;
+        private Quaternion _savedRotation = Quaternion.identity;
         #endregion
 
         #region Contact & Collision Queues
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
-        private Queue<int> _collisionLayers = new Queue<int>();
+        private List<int> _collisionLayers = new List<int>();
         #endregion
 
         #region Public Properties
@@ -56,6 +60,13 @@ namespace Player
         /// Indicates whether the module is currently rotating to align with terrain.
         /// </summary>
         public bool IsRotating => _isRotating;
+        
+        /*
+        /// <summary>
+        /// Indicates whether the module has to reposition the player to the last saved position/rotation
+        /// </summary>
+        public bool RepositionFlag { get; set; }
+*/
         #endregion
 
         #region Unity Callbacks
@@ -81,7 +92,7 @@ namespace Player
                 var hits = raycastManager?.GetHitList();
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
-                    UpdateGroundNormal(hits, raycastManager);
+                    UpdateGroundNormal(hits);
             }
         }
 
@@ -91,7 +102,9 @@ namespace Player
         public bool CanMove(Vector3 movement)
         {
             if (!_isGrounded)
+            {
                 return false;
+            }
             if (movement.magnitude <= 0f)
                 return true;
 
@@ -103,10 +116,16 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
-            Debug.Log("Computed correlation: " + sumCorrelation);
+            if(sumCorrelation == 0f)
+                Debug.Log("Computed correlation: " + sumCorrelation);
             return sumCorrelation > minCorrelationForTransition;
         }
-        
+
+        public void InjectGroundLayer()
+        {
+            _collisionLayers.Add(_groundLayer);
+        }
+
         /// <summary>
         /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
         /// </summary>
@@ -120,9 +139,9 @@ namespace Player
         /// <summary>
         /// Updates terrain normal by averaging hit normals and triggers rotation.
         /// </summary>
-        private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
+        private void UpdateGroundNormal(List<RaycastHit> hits)
         {
-            if (_isRotating) return;
+            //if (_isRotating) return;
             var normals = hits.ConvertAll(x => x.normal);
             Vector3 newNormal = AverageDirection(normals);
             if (newNormal != _groundNormal)
@@ -141,7 +160,9 @@ namespace Player
                 return Vector3.zero;
             Vector3 sum = Vector3.zero;
             foreach (var v in vectors)
+            {
                 sum += v.normalized;
+            }
             return sum.sqrMagnitude < Mathf.Epsilon ? Vector3.zero : sum.normalized;
         }
         #endregion
@@ -152,10 +173,16 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            if (hitData.Layer == _groundLayer)
-                _groundNormal = GetCollisionNormal(hitData);
-            _collisionLayers.Enqueue(hitData.Layer);
-            UpdateGrounded();
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+            {
+                if (hitData.Layer == _groundLayer)
+                    _groundNormal = GetCollisionNormal(hitData);
+                _collisionLayers.Add(hitData.Layer);
+                UpdateGrounded();
+                
+                // Pass the velocity to modulate the volume of the hit ground
+                Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
+            }
         }
 
         /// <summary>
@@ -163,14 +190,18 @@ namespace Player
         /// </summary>
         public void OnExitPhysicsUpdate(CollisionData hitData)
         {
-            TryDequeueTerrain(hitData);
-            UpdateGrounded();
+            
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+            {
+                TryDequeueTerrain(hitData);
+                UpdateGrounded();
+            }
+            
         }
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            if (_collisionLayers.Count > 0)
-                _collisionLayers.Dequeue();
+            _collisionLayers.Remove(hitData.Layer);
         }
         #endregion
 
@@ -187,7 +218,11 @@ namespace Player
         /// <summary>
         /// Returns the current averaged ground normal.
         /// </summary>
-        public Vector3 GetGroundNormal() => _groundNormal;
+        public Vector3 GetGroundNormal()
+        {
+            SetWalkGrounded();
+            return _groundNormal;
+        }
 
         private void UpdateGrounded()
         {
@@ -232,21 +267,21 @@ namespace Player
         /// </summary>
         private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
         {
-            // 1) Get both vectors into the same coordinate space (let's pick local):
+            // Get both vectors into the same coordinate space:
             Vector3 toP  = transform.InverseTransformPoint(point);
             Vector3 vel = transform.InverseTransformDirection(velocity);
 
-            // 2) Drop the up‐component
+            // Drop the up‐component
             toP.y  = 0f;
             vel.y = 0f;
 
-            // 3) Whiten (i.e. scale X and Z by the inverse‐half‐extents):
+            // Whiten
             toP.x *= _whitenScale.x;
             toP.z *= _whitenScale.y;
             vel.x *= _whitenScale.x;
             vel.z *= _whitenScale.y;
 
-            // 4) Normalize and dot
+            // Normalize and dot
             toP.Normalize();
             vel.Normalize();
             return Vector3.Dot(toP, vel);
@@ -262,6 +297,31 @@ namespace Player
         {
             _isRotating = false;
         }
+        #endregion
+        
+        #region Player Reposition
+
+        public void RepositionOnFall()
+        {
+            Rigidbody rb = Player.Instance.Rigidbody;
+            rb.isKinematic = true;
+            rb.position = _savedPosition;
+            rb.rotation = _savedRotation;
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            
+            // TODO: Call here SFX and VFX associated
+            
+            Player.Instance.TakeDamage(20.0f);
+        }
+
+        public void SaveReposition()
+        {
+            _savedPosition = transform.position;
+            _savedRotation = transform.rotation;
+        }
+        
         #endregion
     }
 }

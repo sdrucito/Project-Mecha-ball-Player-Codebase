@@ -23,6 +23,8 @@ namespace Player.Animation
         private bool _isOpened = false;
         private bool _isClosed = false;
         #endregion
+        
+        private Rigidbody _rigidbody;
 
         #region Unity Callbacks
         /// <summary>
@@ -33,21 +35,29 @@ namespace Player.Animation
             Player player = Player.Instance;
             player.ControlModuleManager.GetModule("Ball").OnActivated += Close;
             _isOpened = true;
+            _rigidbody=GetComponentInParent<Rigidbody>();
             //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
         }
         #endregion
 
         #region Public API
         /// <summary>
-        /// Begins open animation: sets kinematic, flags, and Animator parameter.
+        /// Begins open animation: sets flags and Animator parameter.
         /// </summary>
         public void Open()
         {
-            Player.Instance.Rigidbody.isKinematic = true;
+            _rigidbody.isKinematic = true;
             _isOpening = true;
             animator.SetBool("IsOpening", _isOpening);
             if (_isOpened)
+            {
                 OnOpenEnd();
+            }
+            else
+            {
+                Player.Instance.PlayerSound.Open();
+            }
+            
         }
 
         /// <summary>
@@ -58,7 +68,13 @@ namespace Player.Animation
             _isClosing = true;
             animator.SetBool("IsClosing", _isClosing);
             if (_isClosed)
+            {
                 OnCloseEnd();
+            }
+            else
+            {
+                Player.Instance.PlayerSound.Close();
+            }
         }
         #endregion
 
@@ -85,6 +101,8 @@ namespace Player.Animation
             Player.Instance.ControlModuleManager.ActivateNextModule();
             _isClosed = true;
             _isOpened = false;
+            
+            Player.Instance.PhysicsModule.SaveReposition();
         }
         #endregion
     }
