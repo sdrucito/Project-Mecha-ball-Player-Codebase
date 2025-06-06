@@ -8,6 +8,8 @@ namespace Player
     [RequireComponent(typeof(Rigidbody),typeof(PlayerAttributes))]
     public class Player : Singleton<Player>
     {
+        public Action OnDeath;
+        
         private PhysicsModule _physicsModule;
         private PlayerAttributes _playerAttributes;
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
@@ -33,12 +35,22 @@ namespace Player
         private void InitializePlayer()
         {
             _playerAttributes.ResetMaxHealth();
+            // Switch to Ball mode
+            if (ControlModuleManager.GetActiveModuleName() == "Walk")
+            {
+                ControlModuleManager.SwitchMode();
+            }
+            
         }
 
-        public void PositionPlayer(Transform newPosition)
+        public void SpawnPlayer(Transform newPosition)
         {
+            // Use here the function on the other branch for player repositioning
+            transform.position = newPosition.position;
             // Here the player should play something like spawn animations, sounds ecc.
-            throw new NotImplementedException();
+            InitializePlayer();
+            // TODO: Play spawn animation
+            // TODO: Play spawn SFX and/or VFX
         }
         
         private void OnCollisionEnter(Collision other)
@@ -83,6 +95,10 @@ namespace Player
             CharacterController.enabled = movementEnabled;
         }
 
+        public void Die()
+        {
+            OnDeath?.Invoke();
+        }
         
     }
 }

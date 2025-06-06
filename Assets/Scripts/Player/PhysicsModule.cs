@@ -106,18 +106,7 @@ namespace Player
             Debug.Log("Computed correlation: " + sumCorrelation);
             return sumCorrelation > minCorrelationForTransition;
         }
-
-        /// <summary>
-        /// Handles falling behaviour by applying downward weight movement and switching mode.
-        /// </summary>
-        private void Fall()
-        {
-            var characterController = Player.Instance.CharacterController;
-            var movementDirection = Player.Instance.RaycastManager.GetMovementDelta();
-            // apply gravity-influenced movement here as needed
-            Player.Instance.ControlModuleManager.SwitchMode();
-        }
-
+        
         /// <summary>
         /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
         /// </summary>
@@ -262,14 +251,7 @@ namespace Player
             vel.Normalize();
             return Vector3.Dot(toP, vel);
         }
-        /*
-        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
-        {
-            Vector3 toPointFlat = Vector3.ProjectOnPlane(point - transform.position, _groundNormal).normalized;
-            Vector3 velFlat = Vector3.ProjectOnPlane(velocity, _groundNormal).normalized;
-            return Vector3.Dot(toPointFlat, velFlat);
-        }
-        */
+
         #endregion
 
         #region Rotation Completion
