@@ -31,6 +31,16 @@ public class PlayerSound : MonoBehaviour
         AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotClose.eventReference, transform.position);
     }
 
+    public void Jump()
+    {
+        AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotJump.eventReference, transform.position);
+    }
+
+    public void Sprint()
+    {
+        AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotSprint.eventReference, transform.position);
+    }
+
     public void HitGround(string surfaceTag, float velocity)
     {
         EventInstance instance = RuntimeManager.CreateInstance(FMODEvents.Instance.robotGroundHit.eventReference);

@@ -39,8 +39,7 @@ namespace Player
 
         private void Die()
         {
-            Player.Instance.OnPlayerDeath?.Invoke();
-            // TODO: Call GameManager and switch to death state
+            Player.Instance.Die();
         }
     }
 }

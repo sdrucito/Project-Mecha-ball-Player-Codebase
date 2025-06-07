@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -36,23 +37,35 @@ namespace Player
 
       
 
-        private void InitializePlayer()
+        private IEnumerator InitializePlayer()
         {
-            _playerAttributes.ResetMaxHealth();
+            _pawnAttributes.ResetMaxHealth();
             // Switch to Ball mode
             if (ControlModuleManager.GetActiveModuleName() == "Walk")
             {
+                yield return new WaitForSeconds(0.2f);
                 ControlModuleManager.SwitchMode();
+                yield return new WaitForSeconds(3f);
+                ControlModuleManager.SwitchMode();
+                PlayerInputManager.Instance.SetInputEnabled(true);
+            }
+            else
+            {
+                ControlModuleManager.SwitchMode();
+                PlayerInputManager.Instance.SetInputEnabled(true);
             }
             
         }
 
         public void SpawnPlayer(Transform newPosition)
         {
+            // Block player input during spawn
+            PlayerInputManager.Instance.SetInputEnabled(false);
+            
             // Use here the function on the other branch for player repositioning
-            transform.position = newPosition.position;
+            PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
             // Here the player should play something like spawn animations, sounds ecc.
-            InitializePlayer();
+            StartCoroutine(InitializePlayer());
             // TODO: Play spawn animation
             // TODO: Play spawn SFX and/or VFX
         }
