@@ -235,7 +235,9 @@ namespace Player.ControlModules
                     rotationAroundPlayer = Quaternion.LookRotation(projectedMove, groundNormal);
                 }
                 else
-                    rotationAroundPlayer = transform.parent.rotation;
+                {
+                    rotationAroundPlayer = Quaternion.LookRotation(_rigidbody.transform.forward, groundNormal);
+                }
                 
             }
             else // manual
