@@ -1,4 +1,5 @@
 using System;
+using Player.Animation;
 using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -12,9 +13,9 @@ namespace Player
         public Action OnPlayerDeath;
         
         private PhysicsModule _physicsModule;
-        private PawnAttributes _pawnAttributes;
 
- 
+        public PawnAttributes PawnAttributes { get; private set; }
+
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
         [field: SerializeField] public Rigidbody Rigidbody { get; private set; }
         [field: SerializeField] public RaycastManager RaycastManager { get; private set; }
@@ -22,11 +23,14 @@ namespace Player
         [field: SerializeField] public PhysicsModule PhysicsModule { get; private set; }
 
         [field: SerializeField] public PlayerSound PlayerSound { get; private set; }
+        [field: SerializeField] public PlayerAnimator PlayerAnimator { get; private set; }
+        [field: SerializeField] public PlayerVFX PlayerVFX { get; private set; }
+
         protected override void Awake()
         {
             base.Awake();
             _physicsModule = GetComponent<PhysicsModule>();
-            _pawnAttributes = GetComponent<PawnAttributes>();
+            PawnAttributes = GetComponent<PawnAttributes>();
         }
 
         private void Start()
@@ -38,7 +42,7 @@ namespace Player
 
         private void InitializePlayer()
         {
-            _pawnAttributes.ResetMaxHealth();
+            PawnAttributes.ResetMaxHealth();
         }
         private void OnCollisionEnter(Collision other)
         {
@@ -83,9 +87,11 @@ namespace Player
 
         public void TakeDamage(float damage)
         {
-            // TODO: Call here SFX and VFX for damage taken
-            _pawnAttributes.TakeDamage(damage);
-            PlayerSound.TakeDamage();
+            if (!PawnAttributes.IsDead)
+            {
+                PawnAttributes.TakeDamage(damage);
+                PlayerAnimator.TakeDamage();
+            }
         }
         
     }

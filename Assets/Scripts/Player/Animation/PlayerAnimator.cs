@@ -16,6 +16,8 @@ namespace Player.Animation
         #region Animation State Flags
         private bool _isOpening = false;
         private bool _isClosing = false;
+        private bool _idDead = false;
+        private bool _tookDamage = false;
 
         /*
          * Used as savestate to allow rollback between state switch
@@ -34,6 +36,7 @@ namespace Player.Animation
         {
             Player player = Player.Instance;
             player.ControlModuleManager.GetModule("Ball").OnActivated += Close;
+            player.OnPlayerDeath += Die;
             _isOpened = true;
             _rigidbody=GetComponentInParent<Rigidbody>();
             //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
@@ -76,6 +79,31 @@ namespace Player.Animation
                 Player.Instance.PlayerSound.Close();
             }
         }
+
+        /// <summary>
+        /// Fires damage animation: sets flags and Animator parameter.
+        /// </summary>
+        public void TakeDamage()
+        {
+            //Call here SFX and VFX for damage taken
+            _tookDamage = true;
+            animator.SetBool("TookDamage", _tookDamage);
+            Player.Instance.PlayerSound.TakeDamage();
+            Player.Instance.PlayerVFX.TakeDamage();
+            // TODO: Add lights vfx for damage
+        }
+        
+        /// <summary>
+        /// Fires death animation: sets flags and Animator parameter.
+        /// </summary>
+        public void Die()
+        {
+            Debug.Log("Fired Die");
+            //Call here SFX and VFX for damage taken
+            _idDead = true;
+            animator.SetBool("IsDead", _idDead);
+            
+        }
         #endregion
 
         #region Animation Event Handlers
@@ -104,6 +132,33 @@ namespace Player.Animation
             
             Player.Instance.PhysicsModule.SaveReposition();
         }
+        
+        /// <summary>
+        /// Called when close animation finishes: resets flags, activates next animation.
+        /// </summary>
+        public void OnDeathEnd()
+        {
+            _isClosing = false;
+            animator.SetBool("IsClosing", _isClosing);
+            Player.Instance.ControlModuleManager.ActivateNextModule();
+            _isClosed = true;
+            _isOpened = false;
+            
+            Player.Instance.PhysicsModule.SaveReposition();
+        }
+        
+        /// <summary>
+        /// Called when damage animation finishes: resets flags
+        /// </summary>
+        public void OnDamageEnd()
+        {
+            Debug.Log("DamageEnd");
+            _tookDamage = false;
+            animator.SetBool("TookDamage", _tookDamage);
+        }
+        
+        
+        
         #endregion
     }
 }

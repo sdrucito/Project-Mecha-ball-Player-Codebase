@@ -1,13 +1,17 @@
+using System;
 using UnityEngine;
 
 namespace Player
 {
     public class PawnAttributes : MonoBehaviour
     {
+        public Action<float> OnHealthChange;
+        
         private float _health;
         private float _maxHealth = 100f;
     
-        private bool _isDead;
+        
+        public bool IsDead {get; private set;}
         public void ResetMaxHealth()
         {
             _health = _maxHealth;
@@ -40,6 +44,7 @@ namespace Player
         private void Die()
         {
             Player.Instance.OnPlayerDeath?.Invoke();
+            IsDead = true;
             // TODO: Call GameManager and switch to death state
         }
     }
