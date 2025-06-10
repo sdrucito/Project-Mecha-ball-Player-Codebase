@@ -23,6 +23,7 @@ namespace Player
         public float TakeDamage(float damage)
         {
             _health -= damage;
+            OnHealthChange?.Invoke(_health/_maxHealth);
             if (_health <= 0)
             {
                 Die();

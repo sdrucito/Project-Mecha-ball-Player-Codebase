@@ -48,13 +48,13 @@ namespace Player.ControlModules
 
         private void Input_JumpImpulse()
         {
-            if(Player.Instance.IsGrounded())
+            if(Player.Instance.IsGrounded() && Player.Instance.PlayerState != PlayerState.Dead)
                 Player.Instance.Rigidbody.AddForce(Vector3.up * jumpImpulseMagnitude, ForceMode.Impulse);
         }
     
         private void Input_SprintImpulse(Vector2 direction)
         {
-            if (Player.Instance.IsGrounded() && _canSprint)
+            if (Player.Instance.IsGrounded() && _canSprint && Player.Instance.PlayerState != PlayerState.Dead)
             {
                 //Debug.Log("Firing sprint impulse");
                 Player.Instance.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);

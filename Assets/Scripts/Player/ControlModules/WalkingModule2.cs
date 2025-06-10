@@ -191,6 +191,8 @@ namespace Player.ControlModules
         #region Movement methods
         private void ExecuteMovement()
         {
+            if(Player.Instance.PlayerState == PlayerState.Dead) return;
+            
             var groundNormal = Player.Instance.GetGroundNormal();
             Debug.DrawLine(_rigidbody.position,_rigidbody.position + groundNormal * 2.0f, Color.red);
             var projectedMove = ProjectedMove(_inputVector,groundNormal);
@@ -226,7 +228,6 @@ namespace Player.ControlModules
 
         private void ExecuteRotation(Vector3 projectedMove, Vector3 groundNormal)
         {
-            Debug.Log("Executing Rotation");
             Quaternion rotationAroundPlayer;
             if (_directionInputVector.magnitude < 0.01f) // auto
             {

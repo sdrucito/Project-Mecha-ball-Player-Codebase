@@ -6,6 +6,14 @@ using UnityEngine.Serialization;
 
 namespace Player
 {
+    public enum PlayerState
+    {
+        Unoccupied,
+        Hit,
+        Dead
+    }
+    
+    
     [RequireComponent(typeof(Rigidbody),typeof(PawnAttributes))]
     public class Player : Singleton<Player>, IDamageable
     {
@@ -26,11 +34,14 @@ namespace Player
         [field: SerializeField] public PlayerAnimator PlayerAnimator { get; private set; }
         [field: SerializeField] public PlayerVFX PlayerVFX { get; private set; }
 
+        
+        public PlayerState PlayerState { get; private set; }
         protected override void Awake()
         {
             base.Awake();
             _physicsModule = GetComponent<PhysicsModule>();
             PawnAttributes = GetComponent<PawnAttributes>();
+            PlayerState = PlayerState.Unoccupied;
         }
 
         private void Start()
@@ -38,7 +49,10 @@ namespace Player
             InitializePlayer();
         }
 
-      
+        private void Update()
+        {
+            Debug.Log("PlayerState: " + PlayerState);
+        }
 
         private void InitializePlayer()
         {
@@ -90,8 +104,23 @@ namespace Player
             if (!PawnAttributes.IsDead)
             {
                 PawnAttributes.TakeDamage(damage);
-                PlayerAnimator.TakeDamage();
+                if (PlayerState != PlayerState.Hit)
+                {
+                    PlayerState = PlayerState.Hit;
+                    PlayerAnimator.TakeDamage();
+                }
+                PlayerSound.TakeDamage();
+                PlayerVFX.TakeDamage();
             }
+            else
+            {
+                PlayerState = PlayerState.Dead;
+            }
+        }
+
+        public void SetPlayerState(PlayerState newState)
+        {
+            PlayerState = newState;
         }
         
     }

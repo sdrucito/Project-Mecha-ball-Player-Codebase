@@ -16,8 +16,8 @@ namespace Player.Animation
         #region Animation State Flags
         private bool _isOpening = false;
         private bool _isClosing = false;
-        private bool _idDead = false;
-        private bool _tookDamage = false;
+        private static readonly int TookDamageHash = Animator.StringToHash("TookDamage");
+        private static readonly int IsDead = Animator.StringToHash("IsDead");
 
         /*
          * Used as savestate to allow rollback between state switch
@@ -85,12 +85,7 @@ namespace Player.Animation
         /// </summary>
         public void TakeDamage()
         {
-            //Call here SFX and VFX for damage taken
-            _tookDamage = true;
-            animator.SetBool("TookDamage", _tookDamage);
-            Player.Instance.PlayerSound.TakeDamage();
-            Player.Instance.PlayerVFX.TakeDamage();
-            // TODO: Add lights vfx for damage
+            animator.SetTrigger(TookDamageHash);
         }
         
         /// <summary>
@@ -98,11 +93,7 @@ namespace Player.Animation
         /// </summary>
         public void Die()
         {
-            Debug.Log("Fired Die");
-            //Call here SFX and VFX for damage taken
-            _idDead = true;
-            animator.SetBool("IsDead", _idDead);
-            
+            animator.SetTrigger(IsDead);
         }
         #endregion
 
@@ -152,13 +143,8 @@ namespace Player.Animation
         /// </summary>
         public void OnDamageEnd()
         {
-            Debug.Log("DamageEnd");
-            _tookDamage = false;
-            animator.SetBool("TookDamage", _tookDamage);
+            Player.Instance.SetPlayerState(PlayerState.Unoccupied);
         }
-        
-        
-        
         #endregion
     }
 }

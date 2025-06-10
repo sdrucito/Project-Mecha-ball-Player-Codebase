@@ -57,7 +57,7 @@ namespace Player.PlayerController
         public void SwitchMode()
         {
             // Switch only if it's grounded
-            if (Player.Instance.IsGrounded())
+            if (CanSwitch())
             {
                 PlayerInputManager.Instance.SetActionEnabled("ChangeMode", false);
                 _actualModule = GetNextModule();
@@ -66,6 +66,12 @@ namespace Player.PlayerController
                 _modules[_actualModule].OnActivated?.Invoke();
                 
             }
+        }
+
+        private bool CanSwitch()
+        {
+            Player player = Player.Instance;
+            return player.IsGrounded() && player.PlayerState == PlayerState.Unoccupied;
         }
 
         public void SetModuleEnabled(bool moduleEnabled)
