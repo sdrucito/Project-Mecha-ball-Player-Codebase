@@ -43,14 +43,14 @@ namespace Player
         private void OnCollisionEnter(Collision other)
         {
             // Create collision data wrapper
-            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag);
+            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             _physicsModule.OnEnterPhysicsUpdate(collisionData);
         }
 
         private void OnCollisionExit(Collision other)
         {
             // Create collision data wrapper
-            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag);
+            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag,  Rigidbody.linearVelocity.magnitude);
             _physicsModule.OnExitPhysicsUpdate(collisionData);    
         }
 

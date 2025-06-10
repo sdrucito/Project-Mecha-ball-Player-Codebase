@@ -14,15 +14,17 @@ namespace Player
         public Collision CollisionInfo;
         public int Layer;
         public string Tag;
+        public float VelocityMagnitude;
 
         /// <summary>
         /// Constructs collision data record from collision event parameters.
         /// </summary>
-        public CollisionData(Collision collisionInfo, int layer, string tag)
+        public CollisionData(Collision collisionInfo, int layer, string tag, float velocityMagnitude)
         {
             CollisionInfo = collisionInfo;
             Layer = layer;
             Tag = tag;
+            VelocityMagnitude = velocityMagnitude;
         }
     }
 
@@ -177,6 +179,9 @@ namespace Player
                     _groundNormal = GetCollisionNormal(hitData);
                 _collisionLayers.Add(hitData.Layer);
                 UpdateGrounded();
+                
+                // Pass the velocity to modulate the volume of the hit ground
+                Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
             }
         }
 

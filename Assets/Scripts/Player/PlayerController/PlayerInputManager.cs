@@ -19,6 +19,7 @@ namespace Player.PlayerController
         private InputAction _nextCameraAction;
 
         public bool IsCameraTransition { get; set; } = false;
+        private bool _isInputGloballyDisabled = false;
         private const float ISOMETRIC_OFFSET = 45;
 
         [SerializeField] private bool BallImpulseOnMove = true;
@@ -68,15 +69,9 @@ namespace Player.PlayerController
         
             _moveAction.performed += ctx => _currentMoveInput = ctx.ReadValue<Vector2>();
             _moveAction.canceled += ctx => _currentMoveInput = Vector2.zero;
-            _lookAction.performed += ctx =>
-            {
+            _lookAction.performed += ctx => {
                 var device = ctx.control.device;
-
-                if (!MouseEnabled && device is Mouse)
-                {
-                    return;
-                }
-
+                if (!MouseEnabled && device is Mouse) return;
                 _currentDirectionInput = ctx.ReadValue<Vector2>();
             };
             _lookAction.canceled += ctx => _currentDirectionInput = Vector2.zero;
@@ -90,14 +85,7 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
-            if (IsCameraTransition && _playerMap.enabled)
-            {
-                _playerMap.Disable();
-            }
-            else if (!IsCameraTransition && !_playerMap.enabled)
-            {
-                _playerMap.Enable();
-            }
+            CameraTransitionCheck();
             
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnMoveInput?.Invoke(inputCameraRelative);
@@ -117,6 +105,9 @@ namespace Player.PlayerController
             OnLookInput?.Invoke(rotationCameraRelative);
 
             UpdateCursorState();
+            //Debug.Log("INPUT ENABLED: " + _playerInput.enabled);
+            //Debug.Log("Current Action Map: " + _playerInput.currentActionMap.name);
+            //Debug.Log("Player Map Enabled: " + _playerMap.enabled);
         }
         
         private Vector2 RotateInput(Vector2 input, float angleDegrees)
@@ -144,25 +135,37 @@ namespace Player.PlayerController
                 Cursor.lockState = CursorLockMode.Locked;
             }
         }
+
+        private void CameraTransitionCheck()
+        {
+            if (_isInputGloballyDisabled) return;
+            if (IsCameraTransition && _playerMap.enabled)
+            {
+                _playerMap.Disable();
+            }
+            else if (!IsCameraTransition && !_playerMap.enabled)
+            {
+                _playerMap.Enable();
+            }
+        }
         #endregion
 
         #region Public Methods
 
         public void SetInputEnabled(bool inputEnabled)
         {
-            if (inputEnabled)
-            {
-                //_playerInput.ActivateInput();
-                _playerInput.actions.FindActionMap("Player", true).Enable();
-            }
-            else
-            {
-                _playerInput.actions.FindActionMap("Player", true).Disable();
-                //_playerInput.DeactivateInput();
+            _isInputGloballyDisabled = !inputEnabled;
+
+            if (inputEnabled) {
+                _playerInput.ActivateInput();
+                _playerMap.Enable();
+            }else {
+                _playerMap.Disable();
+                _playerInput.DeactivateInput();
             }
         }
         
-        public void SetActionEnabled(string actionName, bool enabled)
+        public void SetActionEnabled(string actionName, bool isEnabled)
         {
             var action = _playerInput.actions.FindAction(actionName);
             if (action == null)
@@ -171,7 +174,7 @@ namespace Player.PlayerController
                 return;
             }
 
-            if (enabled)
+            if (isEnabled)
             {
                 ResetAction(actionName);
             }

@@ -55,7 +55,7 @@ namespace Player.Animation
             }
             else
             {
-                AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotOpenEvent.eventReference, transform.position);
+                Player.Instance.PlayerSound.Open();
             }
             
         }
@@ -68,7 +68,13 @@ namespace Player.Animation
             _isClosing = true;
             animator.SetBool("IsClosing", _isClosing);
             if (_isClosed)
+            {
                 OnCloseEnd();
+            }
+            else
+            {
+                Player.Instance.PlayerSound.Close();
+            }
         }
         #endregion
 
