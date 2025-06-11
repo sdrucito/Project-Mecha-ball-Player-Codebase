@@ -18,6 +18,7 @@ namespace Player.ControlModules
         [SerializeField] private float OverrideAngularDrag;
         
         private bool _canSprint = true;
+        private float _runningSprintCooldown = 0.0f;
         private void Awake()
         {
             name = "Ball";
@@ -71,7 +72,14 @@ namespace Player.ControlModules
         private IEnumerator SprintCoroutine()
         {
             _canSprint = false;
-            yield return new WaitForSeconds(sprintCooldownTime);
+            while (_runningSprintCooldown < sprintCooldownTime)
+            {
+                yield return null;
+                GameManager.Instance.UIManager.HudUI.SetImpulseCharge(_runningSprintCooldown/sprintCooldownTime);
+                _runningSprintCooldown += Time.deltaTime;
+            }
+
+            _runningSprintCooldown = 0.0f;
             _canSprint = true;
         }
     }
