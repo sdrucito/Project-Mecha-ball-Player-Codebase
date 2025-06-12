@@ -5,8 +5,8 @@ using UnityEngine.InputSystem;
 
 public class HapticsManager : RegulatedSingleton<HapticsManager>
 {
-    [SerializeField] private string resourceFolderPath = "HapticPresets";
-    [SerializeField] private bool hapticsEnabled = true;
+    [SerializeField] private string ResourceFolderPath = "HapticPresets";
+    [SerializeField] private bool HapticsEnabled = true;
 
     private Dictionary<string, HapticPreset> _presetMap;
     private Coroutine _currentVibration;
@@ -18,7 +18,7 @@ public class HapticsManager : RegulatedSingleton<HapticsManager>
         base.Awake();
 
         _presetMap = new Dictionary<string, HapticPreset>();
-        var loadedPresets = Resources.LoadAll<HapticPreset>(resourceFolderPath);
+        var loadedPresets = Resources.LoadAll<HapticPreset>(ResourceFolderPath);
         foreach (var preset in loadedPresets)
         {
             if (!_presetMap.TryAdd(preset.IdName, preset))
@@ -26,7 +26,7 @@ public class HapticsManager : RegulatedSingleton<HapticsManager>
                 Debug.LogWarning($"Duplicate haptic preset ID: {preset.IdName}");
             }
         }
-        Debug.Log("Loaded haptic presets: " + _presetMap.Count);
+        //Debug.Log("Loaded haptic presets: " + _presetMap.Count);
     }
 
     public void Play(string id)
@@ -43,7 +43,7 @@ public class HapticsManager : RegulatedSingleton<HapticsManager>
 
     public void Play(HapticPreset preset)
     {
-        if (!hapticsEnabled || !IsControllerActive())
+        if (!HapticsEnabled || !IsControllerActive())
             return;
 
         if (_currentVibration != null && preset.Priority < _currentPriority)
@@ -71,7 +71,7 @@ public class HapticsManager : RegulatedSingleton<HapticsManager>
         _currentVibration = null;
     }
 
-    public void Stop()
+    private void Stop()
     {
         if (_gamepad != null)
         {
@@ -85,7 +85,7 @@ public class HapticsManager : RegulatedSingleton<HapticsManager>
         _currentPriority = int.MinValue;
     }
 
-    private bool IsControllerActive()
+    private static bool IsControllerActive()
     {
         var gamepad = Gamepad.current;
         if (gamepad == null) return false;
@@ -94,9 +94,9 @@ public class HapticsManager : RegulatedSingleton<HapticsManager>
         return keyboard == null || keyboard.lastUpdateTime < gamepad.lastUpdateTime;
     }
 
-    public void SetHapticsEnabled(bool enabled)
+    public void SetHapticsEnabled(bool isEnabled)
     {
-        hapticsEnabled = enabled;
-        if (!enabled) Stop();
+        HapticsEnabled = isEnabled;
+        if (!isEnabled) Stop();
     }
 }
