@@ -64,7 +64,6 @@ namespace Player.PlayerController
                 DeactivateAllModules();
                 IsSwitching = true;
                 _modules[_actualModule].OnActivated?.Invoke();
-                
             }
         }
 
