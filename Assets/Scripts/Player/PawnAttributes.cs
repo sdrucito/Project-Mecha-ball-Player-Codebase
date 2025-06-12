@@ -47,6 +47,7 @@ namespace Player
             Player.Instance.OnPlayerDeath?.Invoke();
             IsDead = true;
             // TODO: Call GameManager and switch to death state
+            Player.Instance.Die();
         }
     }
 }

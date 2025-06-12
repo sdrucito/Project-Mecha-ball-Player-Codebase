@@ -286,14 +286,7 @@ namespace Player
             vel.Normalize();
             return Vector3.Dot(toP, vel);
         }
-        /*
-        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
-        {
-            Vector3 toPointFlat = Vector3.ProjectOnPlane(point - transform.position, _groundNormal).normalized;
-            Vector3 velFlat = Vector3.ProjectOnPlane(velocity, _groundNormal).normalized;
-            return Vector3.Dot(toPointFlat, velFlat);
-        }
-        */
+
         #endregion
 
         #region Rotation Completion
@@ -310,17 +303,21 @@ namespace Player
 
         public void RepositionOnFall()
         {
+            Reposition(_savedPosition, _savedRotation);
+            // TODO: Call here SFX and VFX associated
+            Player.Instance.TakeDamage(20.0f);
+        }
+
+        public void Reposition(Vector3 position, Quaternion rotation)
+        {
             Rigidbody rb = Player.Instance.Rigidbody;
             rb.isKinematic = true;
-            rb.position = _savedPosition;
-            rb.rotation = _savedRotation;
+            rb.position = position;
+            rb.rotation = rotation;
             rb.isKinematic = false;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-            
-            // TODO: Call here SFX and VFX associated
-            
-            Player.Instance.TakeDamage(20.0f);
+
         }
 
         public void SaveReposition()
