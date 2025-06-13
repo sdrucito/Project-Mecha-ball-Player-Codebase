@@ -18,6 +18,8 @@ namespace Player.Animation
         private bool _isClosing = false;
         private static readonly int TookDamageHash = Animator.StringToHash("TookDamage");
         private static readonly int IsDead = Animator.StringToHash("IsDead");
+        private static readonly int Respawn = Animator.StringToHash("Respawn");
+        
 
         /*
          * Used as savestate to allow rollback between state switch
@@ -37,13 +39,27 @@ namespace Player.Animation
             Player player = Player.Instance;
             player.ControlModuleManager.GetModule("Ball").OnActivated += Close;
             player.OnPlayerDeath += Die;
-            _isOpened = true;
             _rigidbody=GetComponentInParent<Rigidbody>();
-            //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
+            Initialize();
         }
         #endregion
 
         #region Public API
+        /// <summary>
+        /// Reset all animator parameters and states
+        /// </summary>
+        public void Initialize()
+        {
+            // Reset all animator params
+            _isOpened = true;
+            _isClosed = false;
+            _isOpening = false;
+            _isClosing = false;
+            animator.ResetTrigger(TookDamageHash);
+            animator.ResetTrigger(IsDead);
+            animator.SetBool("IsOpening", _isOpening);
+            animator.SetBool("IsClosing", _isClosing);
+        }
         /// <summary>
         /// Begins open animation: sets flags and Animator parameter.
         /// </summary>
@@ -94,6 +110,15 @@ namespace Player.Animation
         public void Die()
         {
             animator.SetTrigger(IsDead);
+            animator.ResetTrigger(Respawn);
+        }
+        
+        /// <summary>
+        /// Fires respawn to reset animator.
+        /// </summary>
+        public void Rebirth()
+        {
+            animator.SetTrigger(Respawn);
         }
         #endregion
 
@@ -143,6 +168,7 @@ namespace Player.Animation
         /// </summary>
         public void OnDamageEnd()
         {
+            animator.ResetTrigger(TookDamageHash);
             Player.Instance.SetPlayerState(PlayerState.Unoccupied);
         }
         #endregion

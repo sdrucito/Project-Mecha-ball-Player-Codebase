@@ -47,21 +47,19 @@ namespace Player
 
         private void Start()
         {
-            InitializePlayer();
+            StartCoroutine(InitializePlayer());
         }
-
-        private void Update()
-        {
-            Debug.Log("PlayerState: " + PlayerState);
-        }
-
+        
         private IEnumerator InitializePlayer()
         {
-            _pawnAttributes.ResetMaxHealth();
+            PawnAttributes.InitAttributes();
+            PlayerState = PlayerState.Unoccupied;
+            // Reset Animator
+            PlayerAnimator.Rebirth();
             // Switch to Ball mode
             if (ControlModuleManager.GetActiveModuleName() == "Walk")
             {
-                yield return new WaitForSeconds(0.2f);
+                yield return new WaitForSeconds(1f);
                 ControlModuleManager.SwitchMode();
                 yield return new WaitForSeconds(3f);
                 ControlModuleManager.SwitchMode();
@@ -82,10 +80,9 @@ namespace Player
             
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
+            PlayerAnimator.Initialize();
             // Here the player should play something like spawn animations, sounds ecc.
             StartCoroutine(InitializePlayer());
-            // TODO: Play spawn animation
-            // TODO: Play spawn SFX and/or VFX
         }
         
         private void OnCollisionEnter(Collision other)
