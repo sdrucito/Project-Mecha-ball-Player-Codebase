@@ -61,9 +61,9 @@ namespace Player.ControlModules
         {
             Player player = Player.Instance;
             
-            if (player.IsGrounded() && _canSprint && player.PlayerState != PlayerState.Dead)
+            if (player.IsGrounded() && _canSprint && player.PlayerState != PlayerState.Dead && direction.magnitude > 0.05f)
             {
-                //Debug.Log("Firing sprint impulse");
+                //Debug.Log("Firing sprint impulse"+direction);
                 player.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
                 StartCoroutine(SprintCoroutine());
                 player.PlayerSound.Sprint();
