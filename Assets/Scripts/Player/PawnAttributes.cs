@@ -1,24 +1,42 @@
+using System;
 using UnityEngine;
 
 namespace Player
 {
     public class PawnAttributes : MonoBehaviour
     {
+        public Action<float> OnHealthChange;
+        
         private float _health;
         private float _maxHealth = 100f;
     
-        private bool _isDead;
+        private HUDUI _hud;
+        public bool IsDead {get; private set;}
+
+        public void InitAttributes()
+        {
+            ResetMaxHealth();
+            // If HUD available, setup callbacks for HUD
+            if (GameManager.Instance && GameManager.Instance.UIManager)
+            {
+                _hud = GameManager.Instance.UIManager.HudUI;
+                if(_hud != null)
+                    OnHealthChange += _hud.SetHealth;
+            }
+        }
+        
         public void ResetMaxHealth()
         {
-            _health = _maxHealth;
+            SetHealth(_maxHealth);
         }
         public void SetHealth(float health)
         {
             _health = health > _maxHealth ? _maxHealth : health;
+            OnHealthChange?.Invoke(GetHealthPercentage());
         }
         public float TakeDamage(float damage)
         {
-            _health -= damage;
+            SetHealth(_health-damage);
             if (_health <= 0)
             {
                 Die();
@@ -26,7 +44,6 @@ namespace Player
             return _health;
         }
     
-        // Don't know if it's needed
         public float GetHealthPercentage()
         {
             return (float)_health / _maxHealth;
@@ -40,7 +57,19 @@ namespace Player
         private void Die()
         {
             Player.Instance.OnPlayerDeath?.Invoke();
+            IsDead = true;
             // TODO: Call GameManager and switch to death state
+            Player.Instance.Die();
+        }
+
+        private void OnDisable()
+        {
+            if (GameManager.Instance && GameManager.Instance.UIManager)
+            {
+                _hud = GameManager.Instance.UIManager.HudUI;
+                if(_hud != null)
+                    OnHealthChange -= _hud.SetHealth;
+            }
         }
     }
 }

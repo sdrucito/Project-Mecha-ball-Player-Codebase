@@ -114,28 +114,11 @@ namespace Player.Animation
         private void Awake()
         {
             FixedUpdatePriority = 1;
-        }
-
-        /// <summary>
-        /// Initialize dynamics, leg animators, and group assignments at startup.
-        /// </summary>
-        private void Start()
-        {
             // Initialize the second order resolvers for each foot
-            secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
-            secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
-            secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
-            secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
+            InitializeSecondOrderDynamics();
 
             // Instantiate LegAnimator for each IK target
-            Vector3 relativePos = frontLeftFoot.position - center.position;
-            _frontLeftFootAnim = new LegAnimator(frontLeftFoot, 1f, frontLeftFoot.position, frontLeftFoot.position, secondOrderDynamicsFlF, relativePos, "fl");
-            relativePos = frontRightFoot.position - Player.Instance.Rigidbody.position;
-            _frontRightFootAnim = new LegAnimator(frontRightFoot, 1f, frontRightFoot.position, frontRightFoot.position, secondOrderDynamicsFrF, relativePos, "fr");
-            relativePos = rearLeftFoot.position - Player.Instance.Rigidbody.position;
-            _rearLeftFootAnim = new LegAnimator(rearLeftFoot, 1f, rearLeftFoot.position, rearLeftFoot.position, secondOrderDynamicsRlF, relativePos, "rl");
-            relativePos = rearRightFoot.position - Player.Instance.Rigidbody.position;
-            _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamicsRrF, relativePos, "rr");
+            InitializeLegAnimator();
 
             // Collect all legs and assign to alternating step groups
             _legs.Add(_frontLeftFootAnim);
@@ -154,6 +137,34 @@ namespace Player.Animation
             BuildWhitenScale();
 
             InitializeLegs();
+        }
+
+        /// <summary>
+        /// Initialize dynamics, leg animators, and group assignments at startup.
+        /// </summary>
+        private void Start()
+        {
+            
+        }
+
+        private void InitializeLegAnimator()
+        {
+            Vector3 relativePos = frontLeftFoot.position - center.position;
+            _frontLeftFootAnim = new LegAnimator(frontLeftFoot, 1f, frontLeftFoot.position, frontLeftFoot.position, secondOrderDynamicsFlF, relativePos, "fl");
+            relativePos = frontRightFoot.position - Player.Instance.Rigidbody.position;
+            _frontRightFootAnim = new LegAnimator(frontRightFoot, 1f, frontRightFoot.position, frontRightFoot.position, secondOrderDynamicsFrF, relativePos, "fr");
+            relativePos = rearLeftFoot.position - Player.Instance.Rigidbody.position;
+            _rearLeftFootAnim = new LegAnimator(rearLeftFoot, 1f, rearLeftFoot.position, rearLeftFoot.position, secondOrderDynamicsRlF, relativePos, "rl");
+            relativePos = rearRightFoot.position - Player.Instance.Rigidbody.position;
+            _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamicsRrF, relativePos, "rr");
+        }
+
+        private void InitializeSecondOrderDynamics()
+        {
+            secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
+            secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position);
+            secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position);
+            secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position);
         }
 
 
@@ -221,23 +232,21 @@ namespace Player.Animation
                 {
                     _currentGroup = StepGroup.GroupA;
                     StartStepForGroup(_currentGroup);
+                    playerSound.LegMove();
+
                 }
                 else if (_currentGroup == StepGroup.GroupA && IsMovementGroupFinished(StepGroup.GroupA))
                 {
                     _currentGroup = StepGroup.GroupB;
                     StartStepForGroup(_currentGroup);
-                    
                     //playerSound.Step();
-                    playerSound.LegMove();
 
                 }
                 else if (_currentGroup == StepGroup.GroupB && IsMovementGroupFinished(StepGroup.GroupB))
                 {
                     _currentGroup = StepGroup.GroupA;
                     StartStepForGroup(_currentGroup);
-                    
                     //playerSound.Step();
-                    playerSound.LegMove();
 
                 }
             }

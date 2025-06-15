@@ -16,6 +16,10 @@ namespace Player.Animation
         #region Animation State Flags
         private bool _isOpening = false;
         private bool _isClosing = false;
+        private static readonly int TookDamageHash = Animator.StringToHash("TookDamage");
+        private static readonly int IsDead = Animator.StringToHash("IsDead");
+        private static readonly int Respawn = Animator.StringToHash("Respawn");
+        
 
         /*
          * Used as savestate to allow rollback between state switch
@@ -34,13 +38,28 @@ namespace Player.Animation
         {
             Player player = Player.Instance;
             player.ControlModuleManager.GetModule("Ball").OnActivated += Close;
-            _isOpened = true;
+            player.OnPlayerDeath += Die;
             _rigidbody=GetComponentInParent<Rigidbody>();
-            //player.ControlModuleManager.GetModule("Walk").OnActivated += Open;
+            Initialize();
         }
         #endregion
 
         #region Public API
+        /// <summary>
+        /// Reset all animator parameters and states
+        /// </summary>
+        public void Initialize()
+        {
+            // Reset all animator params
+            _isOpened = true;
+            _isClosed = false;
+            _isOpening = false;
+            _isClosing = false;
+            animator.ResetTrigger(TookDamageHash);
+            animator.ResetTrigger(IsDead);
+            animator.SetBool("IsOpening", _isOpening);
+            animator.SetBool("IsClosing", _isClosing);
+        }
         /// <summary>
         /// Begins open animation: sets flags and Animator parameter.
         /// </summary>
@@ -76,6 +95,31 @@ namespace Player.Animation
                 Player.Instance.PlayerSound.Close();
             }
         }
+
+        /// <summary>
+        /// Fires damage animation: sets flags and Animator parameter.
+        /// </summary>
+        public void TakeDamage()
+        {
+            animator.SetTrigger(TookDamageHash);
+        }
+        
+        /// <summary>
+        /// Fires death animation: sets flags and Animator parameter.
+        /// </summary>
+        public void Die()
+        {
+            animator.SetTrigger(IsDead);
+            animator.ResetTrigger(Respawn);
+        }
+        
+        /// <summary>
+        /// Fires respawn to reset animator.
+        /// </summary>
+        public void Rebirth()
+        {
+            animator.SetTrigger(Respawn);
+        }
         #endregion
 
         #region Animation Event Handlers
@@ -103,6 +147,29 @@ namespace Player.Animation
             _isOpened = false;
             
             Player.Instance.PhysicsModule.SaveReposition();
+        }
+        
+        /// <summary>
+        /// Called when close animation finishes: resets flags, activates next animation.
+        /// </summary>
+        public void OnDeathEnd()
+        {
+            _isClosing = false;
+            animator.SetBool("IsClosing", _isClosing);
+            Player.Instance.ControlModuleManager.ActivateNextModule();
+            _isClosed = true;
+            _isOpened = false;
+            
+            Player.Instance.PhysicsModule.SaveReposition();
+        }
+        
+        /// <summary>
+        /// Called when damage animation finishes: resets flags
+        /// </summary>
+        public void OnDamageEnd()
+        {
+            animator.ResetTrigger(TookDamageHash);
+            Player.Instance.SetPlayerState(PlayerState.Unoccupied);
         }
         #endregion
     }

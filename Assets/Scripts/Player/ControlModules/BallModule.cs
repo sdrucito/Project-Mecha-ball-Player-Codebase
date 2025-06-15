@@ -18,6 +18,7 @@ namespace Player.ControlModules
         [SerializeField] private float OverrideAngularDrag;
         
         private bool _canSprint = true;
+        private float _runningSprintCooldown = 0.0f;
         private void Awake()
         {
             name = "Ball";
@@ -48,24 +49,38 @@ namespace Player.ControlModules
 
         private void Input_JumpImpulse()
         {
-            if(Player.Instance.IsGrounded())
-                Player.Instance.Rigidbody.AddForce(Vector3.up * jumpImpulseMagnitude, ForceMode.Impulse);
+            Player player = Player.Instance;
+            if (player.IsGrounded())
+            {
+                player.Rigidbody.AddForce(Vector3.up * jumpImpulseMagnitude, ForceMode.Impulse);
+                player.PlayerSound.Jump();
+            }
         }
     
         private void Input_SprintImpulse(Vector2 direction)
         {
-            if (Player.Instance.IsGrounded() && _canSprint)
+            Player player = Player.Instance;
+            
+            if (player.IsGrounded() && _canSprint && player.PlayerState != PlayerState.Dead && direction.magnitude > 0.05f)
             {
-                //Debug.Log("Firing sprint impulse");
-                Player.Instance.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
+                //Debug.Log("Firing sprint impulse"+direction);
+                player.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
                 StartCoroutine(SprintCoroutine());
+                player.PlayerSound.Sprint();
             }
         }
 
         private IEnumerator SprintCoroutine()
         {
             _canSprint = false;
-            yield return new WaitForSeconds(sprintCooldownTime);
+            while (_runningSprintCooldown < sprintCooldownTime)
+            {
+                yield return null;
+                GameManager.Instance.UIManager.HudUI.SetImpulseCharge(_runningSprintCooldown/sprintCooldownTime);
+                _runningSprintCooldown += Time.deltaTime;
+            }
+
+            _runningSprintCooldown = 0.0f;
             _canSprint = true;
         }
     }

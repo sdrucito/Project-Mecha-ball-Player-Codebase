@@ -17,6 +17,7 @@ namespace Player.PlayerController
         private InputAction _sprintImpulseAction;
         private InputAction _previousCameraAction;
         private InputAction _nextCameraAction;
+        private InputAction _pauseAction;
 
         public bool IsCameraTransition { get; set; } = false;
         private bool _isInputGloballyDisabled = false;
@@ -32,6 +33,8 @@ namespace Player.PlayerController
         public event Action<Vector2> OnSprintImpulseInput;
         public event Action PreviousCamera;
         public event Action NextCamera;
+        
+        public event Action Pause;
     
         private Vector2 _currentMoveInput = Vector2.zero;
         private Vector2 _currentDirectionInput = Vector2.zero;
@@ -66,7 +69,8 @@ namespace Player.PlayerController
             _sprintImpulseAction = _playerInput.actions.FindAction("Sprint");
             _previousCameraAction = _playerInput.actions.FindAction("Previous Camera");
             _nextCameraAction = _playerInput.actions.FindAction("Next Camera");
-        
+            _pauseAction = _playerInput.actions.FindAction("Pause");
+            
             _moveAction.performed += ctx => _currentMoveInput = ctx.ReadValue<Vector2>();
             _moveAction.canceled += ctx => _currentMoveInput = Vector2.zero;
             _lookAction.performed += ctx => {
@@ -81,6 +85,7 @@ namespace Player.PlayerController
             _sprintImpulseAction.canceled += ctx => _isSprintImpulse = false;
             _previousCameraAction.started += ctx => PreviousCamera?.Invoke();
             _nextCameraAction.started += ctx => NextCamera?.Invoke();
+            _pauseAction.started += ctx => Pause?.Invoke();
         }
 
         private void FixedUpdate()
