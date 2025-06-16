@@ -90,6 +90,14 @@ namespace Player
             // Create collision data wrapper
             CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             _physicsModule.OnEnterPhysicsUpdate(collisionData);
+            /*if (collisionData.Tag == "Ground")
+            {
+                CameraShake.Instance.Shake("BallLanding");
+            }
+            else
+            {
+                CameraShake.Instance.Shake("BounceShake");
+            }*/
         }
 
         private void OnCollisionExit(Collision other)
@@ -142,6 +150,8 @@ namespace Player
                 }
                 PlayerSound.TakeDamage();
                 PlayerVFX.TakeDamage();
+                CameraShake.Instance.Shake("Damage");
+                HapticsManager.Instance.Play("Damage");
             }
             else
             {
