@@ -78,11 +78,7 @@ namespace Player
             _groundLayer = LayerMask.NameToLayer("Ground");
         }
         
-
-        private void Update()
-        {
-            Debug.Log("Collision layers: " + _collisionLayers.Count);
-        }
+        
 
         #endregion
 

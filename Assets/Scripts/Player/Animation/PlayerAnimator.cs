@@ -16,9 +16,9 @@ namespace Player.Animation
         #region Animation State Flags
         private bool _isOpening = false;
         private bool _isClosing = false;
-        private static readonly int TookDamageHash = Animator.StringToHash("TookDamage");
+        private static readonly int TookDamage = Animator.StringToHash("TookDamage");
         private static readonly int IsDead = Animator.StringToHash("IsDead");
-        private static readonly int Respawn = Animator.StringToHash("Respawn");
+        private static readonly int Reset = Animator.StringToHash("Reset");
         
 
         /*
@@ -55,7 +55,7 @@ namespace Player.Animation
             _isClosed = false;
             _isOpening = false;
             _isClosing = false;
-            animator.ResetTrigger(TookDamageHash);
+            animator.ResetTrigger(TookDamage);
             animator.ResetTrigger(IsDead);
             animator.SetBool("IsOpening", _isOpening);
             animator.SetBool("IsClosing", _isClosing);
@@ -101,7 +101,7 @@ namespace Player.Animation
         /// </summary>
         public void TakeDamage()
         {
-            animator.SetTrigger(TookDamageHash);
+            animator.SetTrigger(TookDamage);
         }
         
         /// <summary>
@@ -110,7 +110,7 @@ namespace Player.Animation
         public void Die()
         {
             animator.SetTrigger(IsDead);
-            animator.ResetTrigger(Respawn);
+            animator.ResetTrigger(Reset);
         }
         
         /// <summary>
@@ -118,7 +118,10 @@ namespace Player.Animation
         /// </summary>
         public void Rebirth()
         {
-            animator.SetTrigger(Respawn);
+            if(Player.Instance.PawnAttributes && _isOpened)
+                animator.SetTrigger(Reset);
+            animator.ResetTrigger(IsDead);
+            animator.ResetTrigger(TookDamage);
         }
         #endregion
 
@@ -150,25 +153,11 @@ namespace Player.Animation
         }
         
         /// <summary>
-        /// Called when close animation finishes: resets flags, activates next animation.
-        /// </summary>
-        public void OnDeathEnd()
-        {
-            _isClosing = false;
-            animator.SetBool("IsClosing", _isClosing);
-            Player.Instance.ControlModuleManager.ActivateNextModule();
-            _isClosed = true;
-            _isOpened = false;
-            
-            Player.Instance.PhysicsModule.SaveReposition();
-        }
-        
-        /// <summary>
         /// Called when damage animation finishes: resets flags
         /// </summary>
         public void OnDamageEnd()
         {
-            animator.ResetTrigger(TookDamageHash);
+            animator.ResetTrigger(TookDamage);
             Player.Instance.SetPlayerState(PlayerState.Unoccupied);
         }
         #endregion

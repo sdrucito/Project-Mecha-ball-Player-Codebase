@@ -53,31 +53,33 @@ namespace Player
 
         private IEnumerator InitializePlayer()
         {
-            PawnAttributes.InitAttributes();
             PlayerState = PlayerState.Unoccupied;
             // Reset Animator
             PlayerAnimator.Rebirth();
-            // Switch to Ball mode
-            if (ControlModuleManager.GetActiveModuleName() == "Walk")
+            
+            PawnAttributes.InitAttributes();
+            // Switch to Walk mode
+            if (ControlModuleManager.GetActiveModuleName() != "Walk")
             {
+                
                 while (!_playerKneeWalkAnimator.IsReady)
                 {
                     yield return null;
                 }
+                yield return new WaitForSeconds(1f);
+                ControlModuleManager.SwitchMode();
+                PlayerInputManager.Instance.SetInputEnabled(true);
+                
+                /*
                 _playerKneeWalkAnimator.ResetAllLegs();
                 Debug.Log("WalkMode in start");
                 ControlModuleManager.SwitchMode();
                 yield return new WaitForSeconds(3f);
                 ControlModuleManager.SwitchMode();
-                PlayerInputManager.Instance.SetInputEnabled(true);
+                */
             }
-            else
-            {
-                Debug.Log("BallMode in start");
-                yield return new WaitForSeconds(1f);
-                ControlModuleManager.SwitchMode();
-                PlayerInputManager.Instance.SetInputEnabled(true);
-            }
+            PlayerInputManager.Instance.SetInputEnabled(true);
+
             
         }
 
