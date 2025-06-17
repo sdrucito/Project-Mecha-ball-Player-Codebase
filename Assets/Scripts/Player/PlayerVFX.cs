@@ -25,7 +25,6 @@ namespace Player
 
         private IEnumerator TakeDamageCoroutine(int materialSlot)
         {
-            Debug.Log("Starting damage lerp");
             float lerpSpeed = 5f;
             Material[] materials = renderer.materials;
             _actualFireMaterial = materials[materialSlot];
@@ -58,8 +57,6 @@ namespace Player
                 yield return null;
             }
             renderer.materials[materialSlot] = new Material(_actualFireMaterial);
-            Debug.Log("Ending damage lerp");
-
             
         }
 
@@ -67,6 +64,7 @@ namespace Player
         // the glow lerps to its "damaged" version
         public void SetGlowColor(float healtPercentage)
         {
+            Debug.Log("Receiving Health Percentage "+ healtPercentage);
             if (healtPercentage < 0.5f)
             {
                 float t = 1.0f - (healtPercentage / 0.5f) + 0.2f;

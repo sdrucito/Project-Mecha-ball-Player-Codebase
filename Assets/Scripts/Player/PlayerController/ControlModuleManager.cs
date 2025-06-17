@@ -70,13 +70,9 @@ namespace Player.PlayerController
         private bool CanSwitch()
         {
             Player player = Player.Instance;
-            return player.IsGrounded() && player.PlayerState == PlayerState.Unoccupied;
+            return player.IsGrounded() && player.PlayerState == PlayerState.Unoccupied && !IsSwitching;
         }
-
-        public void SetModuleEnabled(bool moduleEnabled)
-        {
-            _modules[_actualModule].enabled = moduleEnabled;
-        }
+        
 
         public void ActivateNextModule()
         {

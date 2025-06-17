@@ -16,7 +16,9 @@ namespace Player.ControlModules
         private Rigidbody _rigidbody;
         [SerializeField] private float OverrideLinearDrag;
         [SerializeField] private float OverrideAngularDrag;
-        
+
+        [Header("Debug")] public bool CanJumpInfinite = false;
+        [Header("Debug")] public bool CanSprintInfinite = false;
         private bool _canSprint = true;
         private float _runningSprintCooldown = 0.0f;
         private void Awake()
@@ -50,7 +52,7 @@ namespace Player.ControlModules
         private void Input_JumpImpulse()
         {
             Player player = Player.Instance;
-            if (player.IsGrounded())
+            if (player.IsGrounded() || CanJumpInfinite)
             {
                 player.Rigidbody.AddForce(Vector3.up * jumpImpulseMagnitude, ForceMode.Impulse);
                 player.PlayerSound.Jump();
@@ -61,13 +63,18 @@ namespace Player.ControlModules
         {
             Player player = Player.Instance;
             
-            if (player.IsGrounded() && _canSprint && player.PlayerState != PlayerState.Dead && direction.magnitude > 0.05f)
+            if (CanSprint(direction, player) || CanSprintInfinite)
             {
                 //Debug.Log("Firing sprint impulse"+direction);
                 player.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
                 StartCoroutine(SprintCoroutine());
                 player.PlayerSound.Sprint();
             }
+        }
+
+        private bool CanSprint(Vector2 direction, Player player)
+        {
+            return player.IsGrounded() && _canSprint && player.PlayerState != PlayerState.Dead && direction.magnitude > 0.05f;
         }
 
         private IEnumerator SprintCoroutine()

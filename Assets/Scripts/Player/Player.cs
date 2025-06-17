@@ -59,9 +59,9 @@ namespace Player
             // Switch to Ball mode
             if (ControlModuleManager.GetActiveModuleName() == "Walk")
             {
-                yield return new WaitForSeconds(1f);
-                ControlModuleManager.SwitchMode();
                 yield return new WaitForSeconds(3f);
+                ControlModuleManager.SwitchMode();
+                yield return new WaitForSeconds(1f);
                 ControlModuleManager.SwitchMode();
                 PlayerInputManager.Instance.SetInputEnabled(true);
             }
@@ -80,7 +80,7 @@ namespace Player
             
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
-            PlayerAnimator.Initialize();
+            //PlayerAnimator.Initialize();
             // Here the player should play something like spawn animations, sounds ecc.
             StartCoroutine(InitializePlayer());
         }
@@ -128,6 +128,7 @@ namespace Player
 
         public void Die()
         {
+            PlayerInputManager.Instance.SetInputEnabled(false);
             OnPlayerDeath?.Invoke();
         } 
         public void TakeDamage(float damage)
