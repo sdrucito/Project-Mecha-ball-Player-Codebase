@@ -77,13 +77,20 @@ namespace Player
         {
             _groundLayer = LayerMask.NameToLayer("Ground");
         }
+        
+
+        private void Update()
+        {
+            Debug.Log("Collision layers: " + _collisionLayers.Count);
+        }
+
         #endregion
 
         #region Ground Check & Movement
         /// <summary>
         /// Updates grounded state when walking module is active based on raycast hits.
         /// </summary>
-        private void SetWalkGrounded()
+        private void UpdateGrounded()
         {
             var raycastManager = Player.Instance.RaycastManager;
             var controlModule = Player.Instance.ControlModuleManager;
@@ -93,6 +100,10 @@ namespace Player
                 _isGrounded = hits != null && hits.Count > 0;
                 if (_isGrounded)
                     UpdateGroundNormal(hits);
+            }
+            else
+            {
+                UpdateBallGrounded();
             }
         }
 
@@ -173,12 +184,14 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+            Player player = Player.Instance;
+            if (player.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
             {
+                Debug.Log("Adding collision layer: " + hitData.Layer);
                 if (hitData.Layer == _groundLayer)
                     _groundNormal = GetCollisionNormal(hitData);
                 _collisionLayers.Add(hitData.Layer);
-                UpdateGrounded();
+                UpdateBallGrounded();
                 
                 // Pass the velocity to modulate the volume of the hit ground
                 Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
@@ -190,17 +203,18 @@ namespace Player
         /// </summary>
         public void OnExitPhysicsUpdate(CollisionData hitData)
         {
-            
-            if (Player.Instance.ControlModuleManager.GetActiveModuleName() != "Walk")
+            Player player = Player.Instance;
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
             {
                 TryDequeueTerrain(hitData);
-                UpdateGrounded();
+                UpdateBallGrounded();
             }
             
         }
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
+            Debug.Log("Dequeueing collision layer: " + hitData.Layer);
             _collisionLayers.Remove(hitData.Layer);
         }
         #endregion
@@ -211,7 +225,8 @@ namespace Player
         /// </summary>
         public bool IsGrounded()
         {
-            SetWalkGrounded();
+            UpdateGrounded();
+            
             return _isGrounded;
         }
 
@@ -220,11 +235,11 @@ namespace Player
         /// </summary>
         public Vector3 GetGroundNormal()
         {
-            SetWalkGrounded();
+            UpdateGrounded();
             return _groundNormal;
         }
 
-        private void UpdateGrounded()
+        private void UpdateBallGrounded()
         {
             _isGrounded = _collisionLayers.Contains(_groundLayer);
         }
@@ -327,5 +342,12 @@ namespace Player
         }
         
         #endregion
+
+
+        public void ClearGroundData()
+        {
+            _contactPoints.Clear();
+            _collisionLayers.Clear();
+        }
     }
 }

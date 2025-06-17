@@ -49,7 +49,6 @@ namespace Player.ControlModules
         private void Start()
         {
             _rigidbody = Player.Instance.Rigidbody;
-            PlayerKneeWalkAnimator.OnOpenFinished += OpenFinished;
             _lastPosition = Player.Instance.Rigidbody.position;
             _lastFixedMovementApplied = Vector3.zero;
             _lastFixedMovementDelta = Vector3.zero;
@@ -64,9 +63,9 @@ namespace Player.ControlModules
             {
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
                 PlayerInputManager.Instance.OnLookInput += HandleDirection;
-                OpenFinished();
-                PlayerKneeWalkAnimator.enabled = true;
-                
+                PlayerKneeWalkAnimator.OnOpenFinished += OnOpenFinished;
+                ResetMovementData();
+                PlayerKneeWalkAnimator.enabled = true;  
                 if (!_rigidbody) _rigidbody = Player.Instance.Rigidbody;
                 _rigidbody.linearDamping = OverrideLinearDrag;
                 _rigidbody.angularDamping = OverrideAngularDrag;
@@ -82,12 +81,19 @@ namespace Player.ControlModules
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
                 PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
+                PlayerKneeWalkAnimator.OnOpenFinished -= OnOpenFinished;
+
             }
         }
         #endregion
         
         #region Input Handlers
-        private void OpenFinished()
+        private void OnOpenFinished()
+        {
+            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+        }
+
+        private void ResetMovementData()
         {
             // Reset movement delta
             _lastFixedMovementDelta = Vector3.zero;
@@ -98,9 +104,8 @@ namespace Player.ControlModules
             _lastFixedRotationApplied = Quaternion.identity;
             _lastRotation = Player.Instance.Rigidbody.rotation;
             if (_rigidbody) _rigidbody.isKinematic = false;
-            PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
-
         }
+
         private void HandleMovement(Vector2 input){
             _inputVector = input;
         }
@@ -146,7 +151,6 @@ namespace Player.ControlModules
             Vector3 movementDifference = _lastFixedMovementDelta - _lastFixedMovementApplied;
             
             _lastPosition = Player.Instance.Rigidbody.position;
-   
             PlayerKneeWalkAnimator.FollowUserMovement(movementDifference);
         }
 

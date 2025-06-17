@@ -29,7 +29,13 @@ namespace Player.PlayerController
         {
             GetAvailableControlModules();
             _actualModule = 0;
-            _previousModule = 1;
+            _previousModule = 0;
+
+            if (GetActiveModuleName() == "Ball")
+            {
+                _actualModule = 1;
+                _previousModule = 1;
+            }
         }
 
         private void Start()
@@ -64,19 +70,16 @@ namespace Player.PlayerController
                 DeactivateAllModules();
                 IsSwitching = true;
                 _modules[_actualModule].OnActivated?.Invoke();
+                HapticsManager.Instance.Play("SwitchMode");
             }
         }
 
         private bool CanSwitch()
         {
             Player player = Player.Instance;
-            return player.IsGrounded() && player.PlayerState == PlayerState.Unoccupied;
+            return player.IsGrounded() && player.PlayerState == PlayerState.Unoccupied && !IsSwitching;
         }
-
-        public void SetModuleEnabled(bool moduleEnabled)
-        {
-            _modules[_actualModule].enabled = moduleEnabled;
-        }
+        
 
         public void ActivateNextModule()
         {

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using FMOD.Studio;
 using Player.PlayerController;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
@@ -105,10 +106,11 @@ namespace Player.Animation
         public Vector3 MovementDelta { get; set; }
         public Quaternion RotationDelta { get; set; }
         public int FixedUpdatePriority { get; set; }
+        public bool IsReady  { get; private set; }
         #endregion
 
         /// <summary>
-        /// Awake is called when the script instance is being loaded.
+        /// Initialize dynamics, leg animators, and group assignments at startup.
         /// Sets the execution priority for fixed updates.
         /// </summary>
         private void Awake()
@@ -133,18 +135,16 @@ namespace Player.Animation
             _groupBLegs.Add(_rearLeftFootAnim);
 
             _lastPosition = transform.position;
-            
-            BuildWhitenScale();
 
             InitializeLegs();
         }
 
         /// <summary>
-        /// Initialize dynamics, leg animators, and group assignments at startup.
+        /// 
         /// </summary>
         private void Start()
         {
-            
+            BuildWhitenScale();
         }
 
         private void InitializeLegAnimator()
@@ -395,28 +395,7 @@ namespace Player.Animation
                 
             }
         }
-
-        private void SnapLegToPosition(LegAnimator legAnimator)
-        {
-            Vector3 rawTarget = legAnimator.OldPosition;
-            RaycastHit hit;
-            if (Player.Instance.RaycastManager.GetLegHit(legAnimator.Name, out hit))
-            {
-                Vector3 hitPoint = hit.point;
-                Vector3 upDir = transform.parent.up;  
-                float signedDistance = Vector3.Dot(rawTarget - hitPoint, upDir);
-                Debug.Log("Signed distance: " + signedDistance);
-                if (signedDistance < 0f)
-                {
-                    // rawTarget is “under” hitPoint along the parent‐up direction → clamp it
-                    rawTarget = hitPoint + upDir * 0.001f;
-                }
-
-                legAnimator.Transform.position = rawTarget + GetFootHeight();
-                //legAnimator.Transform.position = Vector3.Lerp(legAnimator.Transform.position, rawTarget, Time.deltaTime * 40f);
-
-            }
-        }
+        
 
         /// <summary>
         /// Apply a translation delta to all leg targets, useful when character root moves.
@@ -514,6 +493,7 @@ namespace Player.Animation
         /// </summary>
         private void OnEnable()
         {
+            IsReady = false;
             FixedUpdateManager.Instance.Register(this);
             RaycastManager raycastManager = Player.Instance.RaycastManager;
             if (raycastManager)
@@ -523,6 +503,11 @@ namespace Player.Animation
             }
             
             
+            ResetAnimator();
+        }
+
+        public void ResetAnimator()
+        {
             MovementDelta = Vector3.zero;
             RotationDelta = Quaternion.identity;
             
@@ -558,9 +543,10 @@ namespace Player.Animation
                 yield return null;
             }
             legRig.weight = 1f;
-            _currentGroup = StepGroup.Idle;
-            ReturnLegToIdle();
+            _currentGroup = StepGroup.Idle;            
+            ReturnLegToIdle(); 
             OnOpenFinished?.Invoke();
+            IsReady = true;
         }
 
         /// <summary>
@@ -575,13 +561,9 @@ namespace Player.Animation
                 rm.ExecuteResetPosition(_frontRightFootAnim);
                 rm.ExecuteResetPosition(_rearLeftFootAnim);
                 rm.ExecuteResetPosition(_rearRightFootAnim);
-                secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position + GetFootHeight());
-                secondOrderDynamicsFrF.Initialize(f, z, r, frontRightFoot.position + GetFootHeight());
-                secondOrderDynamicsRlF.Initialize(f, z, r, rearLeftFoot.position + GetFootHeight());
-                secondOrderDynamicsRrF.Initialize(f, z, r, rearRightFoot.position + GetFootHeight());
+                InitializeSecondOrderDynamics();
                 _currentGroup = StepGroup.Idle;
                 _wasMoving = false;
-                ReturnLegToIdle();
             }
         }
 

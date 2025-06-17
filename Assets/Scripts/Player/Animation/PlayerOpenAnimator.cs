@@ -110,6 +110,7 @@ namespace Player.Animation
             if (success)
             {
                 // Correctly aligned: can open
+                player.PhysicsModule.ClearGroundData();
                 onAligned?.Invoke();
             }
             else

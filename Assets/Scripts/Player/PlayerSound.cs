@@ -47,7 +47,6 @@ public class PlayerSound : MonoBehaviour
         RuntimeManager.AttachInstanceToGameObject(instance, transform);
         
         float volumeVelocity = RemapClamped(velocity, 0f, 15f, 0f, 1f);
-        Debug.Log("Volume velocity: " + volumeVelocity + " and velocity: " + velocity);
         // For now it's only one sound, but potentially we can add a map of sounds to play based on the surface hit
         instance.setParameterByName("hit_intensity", volumeVelocity);
         instance.start();

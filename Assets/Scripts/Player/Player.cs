@@ -22,6 +22,7 @@ namespace Player
         public Action OnPlayerDeath;
         
         private PhysicsModule _physicsModule;
+        private PlayerKneeWalkAnimator _playerKneeWalkAnimator;
 
         public PawnAttributes PawnAttributes { get; private set; }
 
@@ -47,9 +48,9 @@ namespace Player
 
         private void Start()
         {
-            StartCoroutine(InitializePlayer());
+            _playerKneeWalkAnimator = GetComponentInChildren<PlayerKneeWalkAnimator>();
         }
-        
+
         private IEnumerator InitializePlayer()
         {
             PawnAttributes.InitAttributes();
@@ -59,7 +60,12 @@ namespace Player
             // Switch to Ball mode
             if (ControlModuleManager.GetActiveModuleName() == "Walk")
             {
-                yield return new WaitForSeconds(1f);
+                while (!_playerKneeWalkAnimator.IsReady)
+                {
+                    yield return null;
+                }
+                _playerKneeWalkAnimator.ResetAllLegs();
+                Debug.Log("WalkMode in start");
                 ControlModuleManager.SwitchMode();
                 yield return new WaitForSeconds(3f);
                 ControlModuleManager.SwitchMode();
@@ -67,6 +73,8 @@ namespace Player
             }
             else
             {
+                Debug.Log("BallMode in start");
+                yield return new WaitForSeconds(1f);
                 ControlModuleManager.SwitchMode();
                 PlayerInputManager.Instance.SetInputEnabled(true);
             }
@@ -80,7 +88,7 @@ namespace Player
             
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
-            PlayerAnimator.Initialize();
+            //PlayerAnimator.Initialize();
             // Here the player should play something like spawn animations, sounds ecc.
             StartCoroutine(InitializePlayer());
         }
@@ -90,6 +98,14 @@ namespace Player
             // Create collision data wrapper
             CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             _physicsModule.OnEnterPhysicsUpdate(collisionData);
+            /*if (collisionData.Tag == "Ground")
+            {
+                CameraShake.Instance.Shake("BallLanding");
+            }
+            else
+            {
+                CameraShake.Instance.Shake("BounceShake");
+            }*/
         }
 
         private void OnCollisionExit(Collision other)
@@ -128,6 +144,7 @@ namespace Player
 
         public void Die()
         {
+            PlayerInputManager.Instance.SetInputEnabled(false);
             OnPlayerDeath?.Invoke();
         } 
         public void TakeDamage(float damage)
@@ -142,6 +159,8 @@ namespace Player
                 }
                 PlayerSound.TakeDamage();
                 PlayerVFX.TakeDamage();
+                CameraShake.Instance.Shake("Damage");
+                HapticsManager.Instance.Play("Damage");
             }
             else
             {

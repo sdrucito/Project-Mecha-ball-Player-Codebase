@@ -4,9 +4,8 @@ using UnityEngine.InputSystem;
 
 namespace Player.PlayerController
 {
-    public class PlayerInputManager : MonoBehaviour
+    public class PlayerInputManager : Singleton<PlayerInputManager>
     {
-        public static PlayerInputManager Instance;
         private PlayerInput _playerInput;
         private InputActionMap _playerMap;
   
@@ -44,15 +43,6 @@ namespace Player.PlayerController
         #region Private Methods
         private void Awake()
         {
-            if (Instance == null)
-            {
-                DontDestroyOnLoad(gameObject);
-                Instance = this;
-            }
-            else if (Instance != this)
-            {
-                Destroy(gameObject);
-            }
 
             _playerInput = GetComponent<PlayerInput>();
             _playerMap = _playerInput.actions.FindActionMap("Player");
