@@ -106,6 +106,7 @@ namespace Player.Animation
         public Vector3 MovementDelta { get; set; }
         public Quaternion RotationDelta { get; set; }
         public int FixedUpdatePriority { get; set; }
+        public bool IsReady  { get; private set; }
         #endregion
 
         /// <summary>
@@ -492,6 +493,7 @@ namespace Player.Animation
         /// </summary>
         private void OnEnable()
         {
+            IsReady = false;
             FixedUpdateManager.Instance.Register(this);
             RaycastManager raycastManager = Player.Instance.RaycastManager;
             if (raycastManager)
@@ -501,6 +503,11 @@ namespace Player.Animation
             }
             
             
+            ResetAnimator();
+        }
+
+        public void ResetAnimator()
+        {
             MovementDelta = Vector3.zero;
             RotationDelta = Quaternion.identity;
             
@@ -528,7 +535,6 @@ namespace Player.Animation
             float elapsed = 0f;
             legRig.weight = 0f;
             ResetAllLegs();
-            ReturnLegToIdle();
 
             while (elapsed < duration)
             {
@@ -537,8 +543,10 @@ namespace Player.Animation
                 yield return null;
             }
             legRig.weight = 1f;
-            _currentGroup = StepGroup.Idle;
+            _currentGroup = StepGroup.Idle;            
+            ReturnLegToIdle(); 
             OnOpenFinished?.Invoke();
+            IsReady = true;
         }
 
         /// <summary>
@@ -556,7 +564,6 @@ namespace Player.Animation
                 InitializeSecondOrderDynamics();
                 _currentGroup = StepGroup.Idle;
                 _wasMoving = false;
-                ReturnLegToIdle();
             }
         }
 

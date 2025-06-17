@@ -118,8 +118,7 @@ namespace Player.Animation
         /// </summary>
         public void Rebirth()
         {
-            if(animator.GetBool(IsDead))
-                animator.SetTrigger(Respawn);
+            animator.SetTrigger(Respawn);
         }
         #endregion
 

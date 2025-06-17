@@ -91,7 +91,6 @@ namespace Player.ControlModules
         private void OnOpenFinished()
         {
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
-            Debug.Log("OnOpenFinished");
         }
 
         private void ResetMovementData()
@@ -152,7 +151,6 @@ namespace Player.ControlModules
             Vector3 movementDifference = _lastFixedMovementDelta - _lastFixedMovementApplied;
             
             _lastPosition = Player.Instance.Rigidbody.position;
-            Debug.Log("World movement: " + movementDifference);
             PlayerKneeWalkAnimator.FollowUserMovement(movementDifference);
         }
 

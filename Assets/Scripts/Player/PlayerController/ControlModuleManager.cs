@@ -29,7 +29,13 @@ namespace Player.PlayerController
         {
             GetAvailableControlModules();
             _actualModule = 0;
-            _previousModule = 1;
+            _previousModule = 0;
+
+            if (GetActiveModuleName() == "Ball")
+            {
+                _actualModule = 1;
+                _previousModule = 1;
+            }
         }
 
         private void Start()

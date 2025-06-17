@@ -22,6 +22,7 @@ namespace Player
         public Action OnPlayerDeath;
         
         private PhysicsModule _physicsModule;
+        private PlayerKneeWalkAnimator _playerKneeWalkAnimator;
 
         public PawnAttributes PawnAttributes { get; private set; }
 
@@ -47,9 +48,9 @@ namespace Player
 
         private void Start()
         {
-            StartCoroutine(InitializePlayer());
+            _playerKneeWalkAnimator = GetComponentInChildren<PlayerKneeWalkAnimator>();
         }
-        
+
         private IEnumerator InitializePlayer()
         {
             PawnAttributes.InitAttributes();
@@ -59,14 +60,21 @@ namespace Player
             // Switch to Ball mode
             if (ControlModuleManager.GetActiveModuleName() == "Walk")
             {
-                yield return new WaitForSeconds(3f);
+                while (!_playerKneeWalkAnimator.IsReady)
+                {
+                    yield return null;
+                }
+                _playerKneeWalkAnimator.ResetAllLegs();
+                Debug.Log("WalkMode in start");
                 ControlModuleManager.SwitchMode();
-                yield return new WaitForSeconds(1f);
+                yield return new WaitForSeconds(3f);
                 ControlModuleManager.SwitchMode();
                 PlayerInputManager.Instance.SetInputEnabled(true);
             }
             else
             {
+                Debug.Log("BallMode in start");
+                yield return new WaitForSeconds(1f);
                 ControlModuleManager.SwitchMode();
                 PlayerInputManager.Instance.SetInputEnabled(true);
             }
