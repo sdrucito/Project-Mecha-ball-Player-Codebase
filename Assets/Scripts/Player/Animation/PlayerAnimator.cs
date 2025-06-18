@@ -101,7 +101,12 @@ namespace Player.Animation
         /// </summary>
         public void TakeDamage()
         {
-            animator.SetTrigger(TookDamage);
+            if(_isOpened)
+                animator.SetTrigger(TookDamage);
+            else
+            {
+                Player.Instance.SetPlayerState(PlayerState.Unoccupied);
+            }
         }
         
         /// <summary>

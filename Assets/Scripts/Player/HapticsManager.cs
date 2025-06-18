@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class HapticsManager : RegulatedSingleton<HapticsManager>
+public class HapticsManager : Singleton<HapticsManager>
 {
     [SerializeField] private string ResourceFolderPath = "HapticPresets";
     [SerializeField] private bool HapticsEnabled = true;

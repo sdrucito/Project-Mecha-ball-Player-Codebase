@@ -6,12 +6,14 @@ namespace Player
 {
     public class PlayerVFX : MonoBehaviour
     {
-        private Material _actualFireMaterial;
+        private Material _currentFireMaterial;
         private float _lastHealthValue = 1.0f;
         [SerializeField] private Material damageMaterial;
         [SerializeField] private Material baseMaterial;
         [SerializeField] private Renderer materialRenderer;
         [SerializeField] private int[] materialSlots;
+        
+        private bool canDamage = false;
         void Start()
         {
             Player.Instance.PawnAttributes.OnHealthChange += SetGlowColor;
@@ -27,45 +29,44 @@ namespace Player
 
         private IEnumerator TakeDamageCoroutine(int materialSlot)
         {
+            while (!canDamage)
+            {
+                yield return null;
+            }
             float lerpSpeed = 5f;
             Material[] materials = materialRenderer.materials;
-            _actualFireMaterial = materials[materialSlot];
-            Material targetMaterial = damageMaterial;
-            
-            materials[materialSlot] = new Material(_actualFireMaterial);
-            
+            Material original = materials[materialSlot];
+            Material target = damageMaterial;
+    
+            materials[materialSlot] = new Material(original);
+            materialRenderer.materials = materials;
             float t = 0f;
-
             while (t < 1f)
             {
                 t += Time.deltaTime * lerpSpeed;
-                materials[materialSlot].Lerp(_actualFireMaterial, targetMaterial, t);
-        
-                // write the modified array back to the renderer
-                materialRenderer.materials = materials;
-
+                materials[materialSlot].Lerp(original, target, t);
+                materialRenderer.materials = materials;       
                 yield return null;
             }
+
             t = 0f;
-
             while (t < 1f)
             {
                 t += Time.deltaTime * lerpSpeed;
-                materials[materialSlot].Lerp(targetMaterial, _actualFireMaterial, t);
-        
-                // write the modified array back to the renderer
+                materials[materialSlot].Lerp(target, original, t);
                 materialRenderer.materials = materials;
-
                 yield return null;
             }
-            materialRenderer.materials[materialSlot] = new Material(_actualFireMaterial);
-            
+            materials[materialSlot] = new Material(original);
+            materialRenderer.materials = materials;
         }
 
         // Make glow color change with the health percentage. If the health is under a given threshold
         // the glow lerps to its "damaged" version
         public void SetGlowColor(float healthPercentage)
         {
+            canDamage = false;
+            
             if (healthPercentage > _lastHealthValue)
             {
                 LerpGlowRecovery(healthPercentage);
@@ -75,6 +76,7 @@ namespace Player
                 LerpGlowDamage(healthPercentage);
             }
             _lastHealthValue = healthPercentage;
+            canDamage = true;
         }
 
         private void LerpGlowRecovery(float healthPercentage)
@@ -85,14 +87,14 @@ namespace Player
             foreach (var materialSlot in materialSlots)
             {
                 Material[] materials = materialRenderer.materials;
-                _actualFireMaterial = materials[materialSlot];
+                _currentFireMaterial = materials[materialSlot];
                 Material targetMaterial = baseMaterial;
             
                 if (!materials[materialSlot].name.Contains("Instance"))
                 {
                     materials[materialSlot] = new Material(materials[materialSlot]);
                 }
-                materials[materialSlot].Lerp(_actualFireMaterial, targetMaterial, t);
+                materials[materialSlot].Lerp(_currentFireMaterial, targetMaterial, t);
 
                 materialRenderer.materials = materials;
             }
@@ -103,14 +105,14 @@ namespace Player
             foreach (var materialSlot in materialSlots)
             {
                 Material[] materials = materialRenderer.materials;
-                _actualFireMaterial = materials[materialSlot];
+                _currentFireMaterial = materials[materialSlot];
                 Material targetMaterial = damageMaterial;
             
                 if (!materials[materialSlot].name.Contains("Instance"))
                 {
                     materials[materialSlot] = new Material(materials[materialSlot]);
                 }
-                materials[materialSlot].Lerp(_actualFireMaterial, targetMaterial, t);
+                materials[materialSlot].Lerp(_currentFireMaterial, targetMaterial, t);
 
                 materialRenderer.materials = materials;
                     

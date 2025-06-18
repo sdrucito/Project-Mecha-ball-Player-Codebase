@@ -58,26 +58,24 @@ namespace Player
             PlayerAnimator.Rebirth();
             
             PawnAttributes.InitAttributes();
+            while (!_playerKneeWalkAnimator.IsReady)
+            {
+                yield return null;
+            }
             // Switch to Walk mode
             if (ControlModuleManager.GetActiveModuleName() != "Walk")
             {
-                
-                while (!_playerKneeWalkAnimator.IsReady)
-                {
-                    yield return null;
-                }
                 yield return new WaitForSeconds(1f);
                 ControlModuleManager.SwitchMode();
-                PlayerInputManager.Instance.SetInputEnabled(true);
-                
-                /*
-                _playerKneeWalkAnimator.ResetAllLegs();
-                Debug.Log("WalkMode in start");
-                ControlModuleManager.SwitchMode();
-                yield return new WaitForSeconds(3f);
-                ControlModuleManager.SwitchMode();
-                */
             }
+            else
+            {
+                yield return new WaitForSeconds(0.2f);
+                _playerKneeWalkAnimator.ReturnLegToIdle();
+                
+            }
+            
+            Debug.Log("Setting input enabled");
             PlayerInputManager.Instance.SetInputEnabled(true);
 
             
@@ -87,7 +85,8 @@ namespace Player
         {
             // Block player input during spawn
             PlayerInputManager.Instance.SetInputEnabled(false);
-            
+            Debug.Log("Setting input disabled");
+
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
             //PlayerAnimator.Initialize();
@@ -146,7 +145,6 @@ namespace Player
 
         public void Die()
         {
-            PlayerInputManager.Instance.SetInputEnabled(false);
             OnPlayerDeath?.Invoke();
         } 
         public void TakeDamage(float damage)
