@@ -98,15 +98,17 @@ namespace Player
         {
             // Create collision data wrapper
             CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
-            _physicsModule.OnEnterPhysicsUpdate(collisionData);
-            /*if (collisionData.Tag == "Ground")
+            if (collisionData.Tag == "Ground")
             {
                 CameraShake.Instance.Shake("BallLanding");
+                HapticsManager.Instance.Play("BumpWeak");
             }
             else
             {
                 CameraShake.Instance.Shake("BounceShake");
-            }*/
+                HapticsManager.Instance.Play(collisionData.VelocityMagnitude > 2 ? "BumpStrong" : "BumpWeak");
+            }
+            _physicsModule.OnEnterPhysicsUpdate(collisionData);
         }
 
         private void OnCollisionExit(Collision other)
