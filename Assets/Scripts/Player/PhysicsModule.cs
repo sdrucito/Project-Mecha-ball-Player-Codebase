@@ -78,11 +78,7 @@ namespace Player
             _groundLayer = LayerMask.NameToLayer("Ground");
         }
         
-
-        private void Update()
-        {
-            Debug.Log("Collision layers: " + _collisionLayers.Count);
-        }
+        
 
         #endregion
 
@@ -187,7 +183,6 @@ namespace Player
             Player player = Player.Instance;
             if (player.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
             {
-                Debug.Log("Adding collision layer: " + hitData.Layer);
                 if (hitData.Layer == _groundLayer)
                     _groundNormal = GetCollisionNormal(hitData);
                 _collisionLayers.Add(hitData.Layer);
@@ -332,7 +327,7 @@ namespace Player
             rb.isKinematic = false;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-
+            rb.WakeUp();
         }
 
         public void SaveReposition()

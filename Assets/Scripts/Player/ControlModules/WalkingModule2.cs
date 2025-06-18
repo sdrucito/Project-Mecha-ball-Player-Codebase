@@ -133,7 +133,7 @@ namespace Player.ControlModules
             // Post-movement phase
             ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
             PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
-            ApplyGravity();
+            //ApplyGravity();
         }
         
         #region Pre-movement and rotation methods
@@ -203,7 +203,6 @@ namespace Player.ControlModules
             if(Player.Instance.IsGrounded())
                 ApplyTouchGrounded();
             ExecuteRotation(projectedMove, groundNormal);
-
             if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
             {
                 Player.Instance.RaycastManager.MovementDelta = Vector3.zero;
@@ -221,7 +220,6 @@ namespace Player.ControlModules
                 // Update the last movement applied by the user
                 _lastFixedMovementApplied = moveDirection;
             }else {
-                Debug.Log("Blocked movement");
                 if(_wasBlocked)
                     _wasBlocked = false;
                 else

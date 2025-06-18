@@ -135,16 +135,15 @@ namespace Player.Animation
             _groupBLegs.Add(_rearLeftFootAnim);
 
             _lastPosition = transform.position;
-
-            InitializeLegs();
         }
 
         /// <summary>
-        /// 
+        /// Initialize legs and build whiten scale
         /// </summary>
         private void Start()
         {
             BuildWhitenScale();
+            InitializeLegs();
         }
 
         private void InitializeLegAnimator()
@@ -308,7 +307,7 @@ namespace Player.Animation
         /// <summary>
         /// Immediately place all legs back to their idle positions.
         /// </summary>
-        private void ReturnLegToIdle()
+        public void ReturnLegToIdle()
         {
             foreach (var leg in _legs)
             {
@@ -463,12 +462,14 @@ namespace Player.Animation
         /// </summary>
         void StartStepForGroup(StepGroup group)
         {
-            if (Player.Instance.RaycastManager)
+            RaycastManager rm = Player.Instance.RaycastManager;
+
+            if (rm.isActiveAndEnabled)
             {
                 var legToMove = (group == StepGroup.GroupA) ? _groupALegs : _groupBLegs;
                 foreach (var leg in legToMove)
                 {
-                    if (!Player.Instance.RaycastManager.ExecuteStepForLeg(leg))
+                    if (!rm.ExecuteStepForLeg(leg))
                         MoveLegReturnToBody(leg);
                 }
             }
@@ -479,12 +480,16 @@ namespace Player.Animation
         /// </summary>
         void VerifyGroundedForGroup(StepGroup group)
         {
-            var rm = Player.Instance.RaycastManager;
-            if (rm)
+            RaycastManager rm = Player.Instance.RaycastManager;
+            if (rm.isActiveAndEnabled)
             {
                 var list = (group == StepGroup.GroupA) ? _groupALegs : _groupBLegs;
                 foreach (var leg in list)
                     rm.ExecuteGroundedForLeg(leg);
+            }
+            else
+            {
+                Debug.Log("RaycastManager not active");
             }
         }
 
@@ -496,13 +501,12 @@ namespace Player.Animation
             IsReady = false;
             FixedUpdateManager.Instance.Register(this);
             RaycastManager raycastManager = Player.Instance.RaycastManager;
-            if (raycastManager)
-            {
+            if(raycastManager != null)
                 raycastManager.enabled = true;
+            if (raycastManager.isActiveAndEnabled)
+            {
                 raycastManager.ResetMovementDelta();
             }
-            
-            
             ResetAnimator();
         }
 
@@ -512,7 +516,6 @@ namespace Player.Animation
             RotationDelta = Quaternion.identity;
             
             _currentGroup = StepGroup.Opening;
-            ExecuteGrounded();
             StartCoroutine(FadeInRig(0.1f));
         }
 
@@ -535,7 +538,6 @@ namespace Player.Animation
             float elapsed = 0f;
             legRig.weight = 0f;
             ResetAllLegs();
-
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
@@ -543,7 +545,7 @@ namespace Player.Animation
                 yield return null;
             }
             legRig.weight = 1f;
-            _currentGroup = StepGroup.Idle;            
+            _currentGroup = StepGroup.Idle;        
             ReturnLegToIdle(); 
             OnOpenFinished?.Invoke();
             IsReady = true;
@@ -555,7 +557,7 @@ namespace Player.Animation
         public void ResetAllLegs()
         {
             var rm = Player.Instance.RaycastManager;
-            if (rm && IsInitialized())
+            if (rm.isActiveAndEnabled && IsInitialized())
             {
                 rm.ExecuteResetPosition(_frontLeftFootAnim);
                 rm.ExecuteResetPosition(_frontRightFootAnim);
