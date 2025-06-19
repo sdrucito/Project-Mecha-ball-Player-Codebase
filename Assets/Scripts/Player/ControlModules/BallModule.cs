@@ -80,12 +80,13 @@ namespace Player.ControlModules
         private IEnumerator SprintCoroutine()
         {
             _canSprint = false;
-            while (_runningSprintCooldown < sprintCooldownTime)
+            while (_runningSprintCooldown - sprintCooldownTime < Single.Epsilon)
             {
                 yield return null;
                 GameManager.Instance.UIManager.HudUI.SetImpulseCharge(_runningSprintCooldown/sprintCooldownTime);
                 _runningSprintCooldown += Time.deltaTime;
             }
+            GameManager.Instance.UIManager.HudUI.SetImpulseCharge(1.0f);
 
             _runningSprintCooldown = 0.0f;
             _canSprint = true;
