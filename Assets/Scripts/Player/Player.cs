@@ -58,10 +58,8 @@ namespace Player
             PlayerAnimator.Rebirth();
             
             PawnAttributes.InitAttributes();
-            while (!_playerKneeWalkAnimator.IsReady)
-            {
-                yield return null;
-            }
+            yield return new WaitUntil(() => _playerKneeWalkAnimator.IsReady);
+
             // Switch to Walk mode
             if (ControlModuleManager.GetActiveModuleName() != "Walk")
             {
