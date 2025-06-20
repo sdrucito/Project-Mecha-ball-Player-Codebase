@@ -97,7 +97,7 @@ namespace Player
         private void OnCollisionEnter(Collision other)
         {
             // Create collision data wrapper
-            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.velocity.magnitude);
+            CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             if (collisionData.Tag == "Ground")
             {
                 CameraShake.Instance.Shake("BallLanding");
