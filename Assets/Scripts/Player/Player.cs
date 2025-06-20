@@ -58,8 +58,10 @@ namespace Player
             PlayerAnimator.Rebirth();
             
             PawnAttributes.InitAttributes();
-            yield return new WaitUntil(() => _playerKneeWalkAnimator.IsReady);
-
+            while (!_playerKneeWalkAnimator.IsReady)
+            {
+                yield return null;
+            }
             // Switch to Walk mode
             if (ControlModuleManager.GetActiveModuleName() != "Walk")
             {
@@ -98,8 +100,11 @@ namespace Player
             CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             if (collisionData.Tag == "Ground")
             {
-                CameraShake.Instance.Shake("BallLanding");
-                HapticsManager.Instance.Play("BumpWeak");
+                if (collisionData.VelocityMagnitude > 0.01)
+                {
+                    CameraShake.Instance.Shake("BallLanding");
+                    HapticsManager.Instance.Play("BumpWeak");
+                }
             }
             else
             {
