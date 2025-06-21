@@ -151,10 +151,11 @@ namespace Player.Animation
             _isClosing = false;
             animator.SetBool("IsClosing", _isClosing);
             Player.Instance.ControlModuleManager.ActivateNextModule();
+            if(_isClosed == false)
+                Player.Instance.PhysicsModule.SaveReposition();
             _isClosed = true;
             _isOpened = false;
             
-            Player.Instance.PhysicsModule.SaveReposition();
         }
         
         /// <summary>
