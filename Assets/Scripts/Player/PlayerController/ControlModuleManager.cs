@@ -30,6 +30,12 @@ namespace Player.PlayerController
             GetAvailableControlModules();
             _actualModule = 0;
             _previousModule = 0;
+
+            if (GetActiveModuleName() == "Ball")
+            {
+                _actualModule = 1;
+                _previousModule = 1;
+            }
         }
 
         private void Start()
@@ -57,16 +63,23 @@ namespace Player.PlayerController
         public void SwitchMode()
         {
             // Switch only if it's grounded
-            if (Player.Instance.IsGrounded())
+            if (CanSwitch())
             {
                 PlayerInputManager.Instance.SetActionEnabled("ChangeMode", false);
                 _actualModule = GetNextModule();
                 DeactivateAllModules();
                 IsSwitching = true;
                 _modules[_actualModule].OnActivated?.Invoke();
-                
+                HapticsManager.Instance.Play("SwitchMode");
             }
         }
+
+        private bool CanSwitch()
+        {
+            Player player = Player.Instance;
+            return player.IsGrounded() && player.PlayerState == PlayerState.Unoccupied && !IsSwitching;
+        }
+        
 
         public void ActivateNextModule()
         {
@@ -79,10 +92,6 @@ namespace Player.PlayerController
             DeactivateAllModules();
             IsSwitching = true;
             _modules[_actualModule].OnActivated?.Invoke();
-        }
-        public void ActivateKinematic()
-        {
-            Player.Instance.Rigidbody.isKinematic = true;
         }
 
         private int GetNextModule()

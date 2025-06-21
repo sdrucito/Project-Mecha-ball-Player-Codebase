@@ -6,343 +6,343 @@ using UnityEngine;
 
 namespace Player
 {
-    /*
- * Component that manages every physics interaction with the world
- * Receives collision callbacks information from the player rigidbody and applies
- * rules basing on the associated physics logic using world tags
- */
+    /// <summary>
+    /// Carries collision details including Unity Collision, layer, and tag.
+    /// </summary>
     public struct CollisionData
     {
         public Collision CollisionInfo;
         public int Layer;
         public string Tag;
+        public float VelocityMagnitude;
 
-        public CollisionData(Collision collisionInfo, int layer, string tag)
+        /// <summary>
+        /// Constructs collision data record from collision event parameters.
+        /// </summary>
+        public CollisionData(Collision collisionInfo, int layer, string tag, float velocityMagnitude)
         {
             CollisionInfo = collisionInfo;
             Layer = layer;
             Tag = tag;
+            VelocityMagnitude = velocityMagnitude;
         }
     }
 
+    /// <summary>
+    /// Component that manages all physics interactions for the player,
+    /// handling collision callbacks, grounding logic, and terrain-normal updates.
+    /// </summary>
     public class PhysicsModule : MonoBehaviour
     {
-        [SerializeField] private float minCorrelationForTransition = 0.1f;
-    
+        #region Serialized Parameters
+        [Header("Ground Transition Settings")]
+        [SerializeField] private float minCorrelationForTransition = 0.9f;
+        #endregion
+
+        #region State Fields
         private bool _isGrounded;
-        private List<ContactPoint> _contactPoints = new List<ContactPoint>();
-    
-        private Queue<int> _collisionLayers = new Queue<int>();
+        private bool _isRotating = false;
+        private int _groundLayer;
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
+        private Vector2 _whitenScale = Vector2.one;
+        private Vector3 _savedPosition = Vector3.zero;
+        private Quaternion _savedRotation = Quaternion.identity;
+        #endregion
 
-        private bool _isRotating = false; 
-        public bool IsRotating
-        {
-            get => _isRotating;
-        }
-        private int _groundLayer;
+        #region Contact & Collision Queues
+        private List<ContactPoint> _contactPoints = new List<ContactPoint>();
+        private List<int> _collisionLayers = new List<int>();
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Indicates whether the module is currently rotating to align with terrain.
+        /// </summary>
+        public bool IsRotating => _isRotating;
         
+        /*
+        /// <summary>
+        /// Indicates whether the module has to reposition the player to the last saved position/rotation
+        /// </summary>
+        public bool RepositionFlag { get; set; }
+*/
+        #endregion
 
+        #region Unity Callbacks
+        /// <summary>
+        /// Cache ground layer index on awake.
+        /// </summary>
         private void Awake()
         {
             _groundLayer = LayerMask.NameToLayer("Ground");
         }
-
-
-        private void SetWalkGrounded()
-        {
-            RaycastManager raycastManager = Player.Instance.RaycastManager;
-            ControlModuleManager controlModule = Player.Instance.ControlModuleManager;
-            if (controlModule && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
-            {
-                if (raycastManager)
-                {
-                    List<RaycastHit> hits = raycastManager.GetHitList();
-                    if (hits.Count > 0)
-                    {
-                        // Is walking normally
-                        _isGrounded = true;
-                        UpdateGroundNormal(hits, raycastManager);
-                    }
-                    else
-                    {
-                        // For some reason, the robot is falling
-                        _isGrounded = false;
-                    }
-                    
-                }
-            }
-        }
         
-        public bool CanMove(Vector3 movement)
+        
+
+        #endregion
+
+        #region Ground Check & Movement
+        /// <summary>
+        /// Updates grounded state when walking module is active based on raycast hits.
+        /// </summary>
+        private void UpdateGrounded()
         {
-            //Debug.DrawLine(Player.Instance.Rigidbody.position, Player.Instance.Rigidbody.position + movement*50.0f, Color.green);
-            if (movement.magnitude > 0.0f)
+            var raycastManager = Player.Instance.RaycastManager;
+            var controlModule = Player.Instance.ControlModuleManager;
+            if (controlModule != null && !controlModule.IsSwitching && controlModule.GetActiveModuleName() == "Walk")
             {
-                RaycastManager raycastManager = Player.Instance.RaycastManager;
-                List<RaycastHit> hits = raycastManager.GetHitList();
-                float maxCorrelation = 0.5f;
-                float sumCorrelation = 0.0f;
-                foreach (var hit in hits)
-                {
-                    float correlation = GetMovementCorrelation(hit.point, movement);
-                    if (correlation > 0.0f)
-                    {
-                        sumCorrelation += correlation;
-                    }
-                    
-                }
-                //Debug.Log("Computed correlation: " + correlation);
-                if (sumCorrelation > maxCorrelation)
-                {
-                    return true;
-                }
-                return false;
+                var hits = raycastManager?.GetHitList();
+                _isGrounded = hits != null && hits.Count > 0;
+                if (_isGrounded)
+                    UpdateGroundNormal(hits);
             }
             else
             {
-                return true;
+                UpdateBallGrounded();
             }
-            
         }
 
-
-        private void Fall()
+        /// <summary>
+        /// Determines if movement is allowed given current grounded state and surface correlation.
+        /// </summary>
+        public bool CanMove(Vector3 movement)
         {
-            // Apply movement in the direction of fall to simulate the weight
-            CharacterController characterController = Player.Instance.CharacterController;
-            Vector3 movementDirection = Player.Instance.RaycastManager.GetMovementDelta();
-            
-            // Apply first horizontal movement
-            
-            Player.Instance.ControlModuleManager.SwitchMode();
-        }
-        /*
-         * Function that computes the istantaneous normal that determines the rotation of the player
-         */
-        private void UpdateGroundNormal(List<RaycastHit> hits, RaycastManager raycastManager)
-        {
-            if (!_isRotating)
+            if (!_isGrounded)
             {
-                Vector3 newNormal = AverageDirection(hits.ConvertAll(x => x.normal));
-                if (newNormal != _groundNormal)
-                {
-                    _groundNormal = newNormal;
-                    _isRotating = true;
-                }
-                else
-                {
-                    _isRotating = false;
-                }
+                return false;
             }
-            
+            if (movement.magnitude <= 0f)
+                return true;
+
+            var hits = Player.Instance.RaycastManager.GetHitList();
+            float sumCorrelation = 0f;
+            foreach (var hit in hits)
+            {
+                float corr = GetMovementCorrelation(hit.point, movement);
+                if (corr > 0f)
+                    sumCorrelation += corr;
+            }
+            if(sumCorrelation == 0f)
+                Debug.Log("Computed correlation: " + sumCorrelation);
+            return sumCorrelation > minCorrelationForTransition;
         }
-        
+
+        public void InjectGroundLayer()
+        {
+            _collisionLayers.Add(_groundLayer);
+        }
+
+        /// <summary>
+        /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
+        /// </summary>
+        public void UpdateWhitenScale(Vector2 scale)
+        {
+            _whitenScale = scale;
+        }
+        #endregion
+
+        #region Ground Normal Computation
+        /// <summary>
+        /// Updates terrain normal by averaging hit normals and triggers rotation.
+        /// </summary>
+        private void UpdateGroundNormal(List<RaycastHit> hits)
+        {
+            //if (_isRotating) return;
+            var normals = hits.ConvertAll(x => x.normal);
+            Vector3 newNormal = AverageDirection(normals);
+            if (newNormal != _groundNormal)
+            {
+                _groundNormal = newNormal;
+                _isRotating = true;
+            }
+        }
+
+        /// <summary>
+        /// Computes normalized average direction of a list of vectors.
+        /// </summary>
         private Vector3 AverageDirection(List<Vector3> vectors)
         {
             if (vectors == null || vectors.Count == 0)
                 return Vector3.zero;
-
             Vector3 sum = Vector3.zero;
             foreach (var v in vectors)
             {
                 sum += v.normalized;
             }
-
-            if (sum.sqrMagnitude < Mathf.Epsilon)
-                return Vector3.zero;
-
-            return sum.normalized;
+            return sum.sqrMagnitude < Mathf.Epsilon ? Vector3.zero : sum.normalized;
         }
-       
-      
+        #endregion
+
+        #region Collision Callbacks
+        /// <summary>
+        /// Called when physics collision begins: updates normal and grounding queue.
+        /// </summary>
+        public void OnEnterPhysicsUpdate(CollisionData hitData)
+        {
+            Player player = Player.Instance;
+            if (player.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
+            {
+                if (hitData.Layer == _groundLayer)
+                    _groundNormal = GetCollisionNormal(hitData);
+                _collisionLayers.Add(hitData.Layer);
+                UpdateBallGrounded();
+                
+                // Pass the velocity to modulate the volume of the hit ground
+                Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
+            }
+        }
+
+        /// <summary>
+        /// Called when physics collision ends: removes layer and updates grounding.
+        /// </summary>
+        public void OnExitPhysicsUpdate(CollisionData hitData)
+        {
+            Player player = Player.Instance;
+            if (Player.Instance.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
+            {
+                TryDequeueTerrain(hitData);
+                UpdateBallGrounded();
+            }
+            
+        }
+
+        private void TryDequeueTerrain(CollisionData hitData)
+        {
+            Debug.Log("Dequeueing collision layer: " + hitData.Layer);
+            _collisionLayers.Remove(hitData.Layer);
+        }
+        #endregion
+
+        #region Grounded Queries
+        /// <summary>
+        /// Returns current grounded state, performing walk-specific check.
+        /// </summary>
+        public bool IsGrounded()
+        {
+            UpdateGrounded();
+            
+            return _isGrounded;
+        }
+
+        /// <summary>
+        /// Returns the current averaged ground normal.
+        /// </summary>
+        public Vector3 GetGroundNormal()
+        {
+            UpdateGrounded();
+            return _groundNormal;
+        }
+
+        private void UpdateBallGrounded()
+        {
+            _isGrounded = _collisionLayers.Contains(_groundLayer);
+        }
+        #endregion
+
+        #region Collision Normal Helpers
+        /// <summary>
+        /// Computes the normal at collision point most aligned with downward direction.
+        /// </summary>
+        private Vector3 GetCollisionNormal(CollisionData hitData)
+        {
+            hitData.CollisionInfo.GetContacts(_contactPoints);
+            GetCollisionPoint(out ContactPoint? cp);
+            return cp?.normal ?? Vector3.zero;
+        }
+
+        /// <summary>
+        /// Finds the contact point that maximizes downward correlation for grounding.
+        /// </summary>
+        private void GetCollisionPoint(out ContactPoint? contactPoint)
+        {
+            var rb = Player.Instance.Rigidbody;
+            if (_contactPoints.Count == 0)
+            {
+                contactPoint = null;
+                return;
+            }
+            float maxCorr = Vector3.Dot(rb.position - _contactPoints[0].point, Vector3.down);
+            int idx = 0;
+            for (int i = 1; i < _contactPoints.Count; i++)
+            {
+                float corr = Vector3.Dot(rb.position - _contactPoints[i].point, Vector3.down);
+                if (corr > maxCorr) { maxCorr = corr; idx = i; }
+            }
+            contactPoint = _contactPoints[idx];
+        }
+
+        /// <summary>
+        /// Calculates dot-product correlation between movement and flat surface vector.
+        /// </summary>
+        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
+        {
+            // Get both vectors into the same coordinate space:
+            Vector3 toP  = transform.InverseTransformPoint(point);
+            Vector3 vel = transform.InverseTransformDirection(velocity);
+
+            // Drop the up‐component
+            toP.y  = 0f;
+            vel.y = 0f;
+
+            // Whiten
+            toP.x *= _whitenScale.x;
+            toP.z *= _whitenScale.y;
+            vel.x *= _whitenScale.x;
+            vel.z *= _whitenScale.y;
+
+            // Normalize and dot
+            toP.Normalize();
+            vel.Normalize();
+            return Vector3.Dot(toP, vel);
+        }
+
+        #endregion
+
+        #region Rotation Completion
+        /// <summary>
+        /// Called by rotation tween when alignment ends.
+        /// </summary>
         public void OnRotatingEnd()
         {
             _isRotating = false;
         }
-
-        public void OnEnterPhysicsUpdate(CollisionData hitData)
-        {
-            if(hitData.Layer == _groundLayer)
-                _groundNormal = GetCollisionNormal(hitData);
-            switch (hitData.Tag)
-            {
-                default:
-                    break;
-            }
-            _collisionLayers.Enqueue(hitData.Layer);
-            UpdateGrounded();
-        }
-    
-        public void OnExitPhysicsUpdate(CollisionData hitData)
-        {
-            switch (hitData.Tag)
-            {
-                default:
-                    break;
-            }
-            Debug.Log("Called OnExit");
-
-            TryDequeueTerrain(hitData);
-            UpdateGrounded();
-        }
-    
-        private void TryDequeueTerrain(CollisionData hitData)
-        {
-            _collisionLayers.Dequeue();
-        }
-
-        public bool IsGrounded()
-        {
-            SetWalkGrounded();
-            return _isGrounded;
-        }
-
-        private void UpdateGrounded()
-        {
-            if (_collisionLayers.Contains(_groundLayer))
-            {
-                _isGrounded = true;
-            }
-            else
-            {
-                _isGrounded = false;
-            }
-        }
-        public Vector3 GetGroundNormal()
-        {
-            return _groundNormal;
-        }
+        #endregion
         
-        private Vector3 GetCollisionNormal(CollisionData hitData)
+        #region Player Reposition
+
+        public void RepositionOnFall()
         {
-            // Take the instantaneous velocity of the player to infer its movement direction
-            // and understand the correct terrain point to consider
-            hitData.CollisionInfo.GetContacts(_contactPoints);
-            ContactPoint? collisionPoint; 
-            GetCollisionPoint(out collisionPoint);
-
-
-            // Get the normal and calculate the global angle with respect to the global Y axis
-            if (collisionPoint.HasValue)
-            {
-                Debug.DrawRay(transform.position, collisionPoint.Value.normal*5f, Color.red,3f);
-                return collisionPoint.Value.normal;
-            }
-            else
-            {
-                return Vector3.zero;
-            }
+            Reposition(_savedPosition, _savedRotation);
+            // TODO: Call here SFX and VFX associated
+            Player.Instance.TakeDamage(20.0f);
         }
 
-    
-        /*
-            * Function that calculates the *new* ground angle
-            * when a collision is triggered, thus when the player moves from one terrain to another
-        */
-        private float GetCollisionAngle(CollisionData hitData)
-        {
-            // Take the instantaneous velocity of the player to infer its movement direction
-            // and understand the correct terrain point to consider
-            hitData.CollisionInfo.GetContacts(_contactPoints);
-            ContactPoint? collisionPoint; 
-            GetCollisionPoint(out collisionPoint);
-        
-            // Get the normal and calculate the global angle with respect to the global Y axis
-            if (collisionPoint.HasValue)
-            {
-                return Vector3.Angle(collisionPoint.Value.normal, Vector3.up);
-            }
-            else
-            {
-                return float.NaN;
-            }
-        }
-
-        /*
-         * Function that returns the collision point to be considered as correct for ground normal computation
-         * It is taken based on the Down direction of the world
-         */
-        private void GetCollisionPoint(out ContactPoint? contactPoint)
+        public void Reposition(Vector3 position, Quaternion rotation)
         {
             Rigidbody rb = Player.Instance.Rigidbody;
-            if (_contactPoints.Count > 0)
-            {
-                float maxCorrelation = Vector3.Dot((rb.position - _contactPoints[0].point), Vector3.down);
-                int maxIndex = 0;
-                for (int i = 1; i < _contactPoints.Count; i++)
-                {
-                    float correlation = Vector3.Dot((rb.position - _contactPoints[i].point), Vector3.down);
-                    if (correlation > maxCorrelation)
-                    {
-                        maxIndex = i;
-                    }
-                }
-                
-                contactPoint = _contactPoints[maxIndex];
-             
-            }
-            else
-            {
-                contactPoint = null;
-            }
-        
+            rb.isKinematic = true;
+            rb.position = position;
+            rb.rotation = rotation;
+            rb.isKinematic = false;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.WakeUp();
         }
 
-        
-        /*
-         * Function that calculates the movement correlation for each contact points
-         * and chooses the one with the highest value of correlation
-         */
-        private void GetCollisionPoint_Deprecated(Vector3 instantaneousVelocity, out ContactPoint? contactPoint)
+        public void SaveReposition()
         {
-            
-            if (_contactPoints.Count > 0)
-            {
-                float maxCorrelation = GetMovementCorrelation(_contactPoints[0].point, instantaneousVelocity);
-                int maxIndex = 0;
-                for (int i = 1; i < _contactPoints.Count; i++)
-                {
-                    float correlation = GetMovementCorrelation(_contactPoints[i].point, instantaneousVelocity);
-                    if (correlation > maxCorrelation)
-                    {
-                        maxIndex = i;
-                    }
-                }
-
-                if (maxCorrelation > minCorrelationForTransition)
-                {
-                    contactPoint = _contactPoints[maxIndex];
-                }
-                else
-                {
-                    // For now return the same value
-                    contactPoint = _contactPoints[maxIndex];
-                }
-            }
-            else
-            {
-                contactPoint = null;
-            }
-        
+            _savedPosition = transform.position;
+            _savedRotation = transform.rotation;
         }
+        
+        #endregion
 
-        /*
-         * Function that estimates the probability that the player is moving
-         * toward a point given its instant velocity
-         */
-        private float GetMovementCorrelation(Vector3 point, Vector3 velocity)
+
+        public void ClearGroundData()
         {
-            
-            Rigidbody rb= Player.Instance.Rigidbody;
-            Vector3 toPointLocal = rb.transform.InverseTransformPoint(point);
-            toPointLocal.y = 0f;
-
-            Vector3 velLocal = rb.transform.InverseTransformDirection(velocity);
-            velLocal.y = 0f;
-
-            return Vector3.Dot(toPointLocal.normalized, velLocal.normalized);
+            _contactPoints.Clear();
+            _collisionLayers.Clear();
         }
     }
 }

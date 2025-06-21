@@ -110,6 +110,7 @@ namespace Player.Animation
             if (success)
             {
                 // Correctly aligned: can open
+                player.PhysicsModule.ClearGroundData();
                 onAligned?.Invoke();
             }
             else
@@ -166,7 +167,7 @@ namespace Player.Animation
             // Ray setup
             float halfHeight = 0.05f;        
             float startDist = halfHeight + 0.01f;
-            float rayLength = halfHeight + 1.5f; 
+            float rayLength = halfHeight + 2.3f; 
             Vector3 rayDir = -n;             
 
             // Grid step sizes in plane‐local space
@@ -201,33 +202,6 @@ namespace Player.Animation
 
             return coverage >= requiredCoverage;
         }
-                /*
-
-        private List<Vector3> FindFreeSpots()
-        {
-            List<Vector3> freeSpots = new List<Vector3>();
-            Vector3 origin = transform.position;
-            float halfW = spotDimensions.x * 0.5f;
-            float halfD = spotDimensions.y * 0.5f;
-
-            for (float dx = -searchExtents.x; dx <= searchExtents.x; dx += samplingStep)
-            {
-                for (float dz = -searchExtents.y; dz <= searchExtents.y; dz += samplingStep)
-                {
-                    Vector3 candidate = new Vector3(
-                        origin.x + dx,
-                        origin.y,
-                        origin.z + dz
-                    );
-
-                    if (IsAreaClear(candidate, new Vector2(halfW, halfD)))
-                        freeSpots.Add(candidate);
-                }
-            }
-
-            return freeSpots;
-        }
-         */
         
     }
 }

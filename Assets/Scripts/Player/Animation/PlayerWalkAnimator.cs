@@ -9,30 +9,7 @@ using UnityEngine.Serialization;
 
 namespace Player.Animation
 {
-    [System.Serializable]
-    public class LegAnimator
-    {
     
-        public Transform Transform;
-        public float Lerp;
-        public Vector3 NewPosition;
-        public Vector3 OldPosition;
-        public SecondOrderDynamics SecondOrderDynamics;
-        public Vector3 RelativePosition;
-        public string Name;
-
-        public LegAnimator(Transform transform, float lerp, Vector3 newPosition, Vector3 oldPosition, SecondOrderDynamics secondOrderDynamics, Vector3 relativePosition, string name)
-        {
-            Transform = transform;
-            Lerp = lerp;
-            NewPosition = newPosition;
-            OldPosition = oldPosition;
-            SecondOrderDynamics = secondOrderDynamics;
-            RelativePosition = relativePosition;
-            Name = name;
-        }
-
-    }
 
 /*
  * Component that manages the procedural animation for the player movement

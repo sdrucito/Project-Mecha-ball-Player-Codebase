@@ -3,357 +3,260 @@ using System.Collections.Generic;
 using System.Linq;
 using Player.Animation;
 using UnityEngine;
+using UnityEngine.Serialization;
 
+/// <summary>
+/// Manages raycasting for leg IK stepping: tracks movement/rotation deltas,
+/// performs terrain checks per leg, and caches raycast hits each physics frame.
+/// </summary>
 public class RaycastManager : MonoBehaviour
 {
-
+    #region Serialized Fields
+    [Header("Step & Jump Settings")]
     [SerializeField] private float stepLength = 5.0f;
     [SerializeField] private float jumpHeight = 2f;
+    [Header("Anticipation Multipliers")]
     [SerializeField] private float stepAnticipationMultiplier = 25f;
+    [SerializeField] private float rotAnticipationMultiplier = 0.5f;
+    [Header("Terrain Layer")]
     [SerializeField] private string terrainLayer;
     [SerializeField] private float maxMovementMagnitude = 1f;
+
+    [Header("Foot Plane Rotation")] 
+    [SerializeField] private int footPlaneSteps = 3;
+
+    [SerializeField] private int footPlaneRotationAngle = 20;
+    #endregion
+
+    #region Private Fields
     private Rigidbody _rigidbody;
     private readonly Dictionary<string, RaycastHit> _hitList = new Dictionary<string, RaycastHit>();
     private List<LegAnimator> _legs = new List<LegAnimator>();
-    
-    private Vector3 _lastRootPos;
-    private Vector3 _movementDelta;
+    #endregion
+
+    #region Public Properties
+    public int FixedUpdatePriority { get; set; }
+    public Vector3 MovementDelta { get; set; }
+    public Quaternion RotationDelta { get; set; }
+    #endregion
+
+    #region Unity Callbacks
+    /// <summary>
+    /// Cache Rigidbody reference and set fixed update execution order.
+    /// </summary>
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
+        FixedUpdatePriority = 1;
     }
 
-    private void Start()
+    /// <summary>
+    /// Draws debug gizmos for each leg's raycast and hit points in the editor.
+    /// </summary>
+    private void OnDrawGizmos()
     {
-        _lastRootPos = _rigidbody.position;
-    }
+        Gizmos.color = Color.yellow;
+        foreach (var leg in _legs)
+        {
+            Vector3 origin = ComputeLegPositionForStep(leg, 0.0f);
+            Vector3 direction = -_rigidbody.transform.up;
 
-    /*
-     * When enabled, reset the movement delta
-     */
+            Gizmos.DrawLine(origin, origin + direction * jumpHeight);
+            Debug.DrawRay(origin, direction * jumpHeight, Color.yellow);
+
+            if (_hitList.TryGetValue(leg.Name, out var hit))
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(origin, hit.point);
+                Gizmos.DrawSphere(hit.point, 0.15f);
+                Gizmos.DrawSphere(leg.NewPosition, 0.10f);
+                Gizmos.color = Color.yellow;
+            }
+        }
+    }
+    #endregion
+
+    #region Public API
+    /// <summary>
+    /// Resets movement and rotation deltas to zero.
+    /// </summary>
     public void ResetMovementDelta()
     {
-        _movementDelta = Vector3.zero;
-        _lastRootPos = _rigidbody.position;
+        MovementDelta = Vector3.zero;
+        RotationDelta = Quaternion.identity;
     }
 
-    /*
-     * Computes, when active, the movement captured between the last FixedUpdate
-     * It is used by all components that need to know the instantaneous velocity
-     */
-    void FixedUpdate()
-    {
-        _movementDelta = _rigidbody.position - _lastRootPos;
-        _lastRootPos = _rigidbody.position;
-        // Clamp movement delta to avoid strange behaviors
-        _movementDelta = Vector3.ClampMagnitude(_movementDelta, maxMovementMagnitude);
-    }
-
-
+    /// <summary>
+    /// Returns whether a given leg currently has a valid ground hit cached.
+    /// </summary>
     public bool IsLegGrounded(string legName)
     {
-        if (_hitList.ContainsKey(legName))
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return _hitList.ContainsKey(legName);
     }
-    
+
+    /// <summary>
+    /// Casts a downward ray at leg's anticipated position and caches hit for grounding logic.
+    /// </summary>
     public void ExecuteGroundedForLeg(LegAnimator leg)
     {
-        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-        {
-            _hitList.TryAdd(leg.Name, hit);
-        }
-        
-    }
-    
-    public void ExecuteGroundedForOverLimitSlope(LegAnimator leg)
-    {
-        // 1. origin of the ray
-        Vector3 worldOrigin    = ComputeLegPositionForOverSlope(leg);
-        Vector3 bodyCenter     = _rigidbody.transform.position;
-    
-        // 2. pure downward direction
-        Vector3 downDir        = -_rigidbody.transform.up;
-    
-        // 3. horizontal “side” direction from body center to leg
-        Vector3 sideDir = (bodyCenter   - worldOrigin);
-        sideDir.y              = 0;               // flatten to horizontal
-        if (sideDir.sqrMagnitude < 1e-6f)
-            sideDir = _rigidbody.transform.right; // fallback if leg is exactly under center
-        sideDir.Normalize();
-    
-        // 4. mix them at 45°: rotate 'downDir' toward 'sideDir' by 45° (in radians)
-        float   angleRad       = 45f * Mathf.Deg2Rad;
-        Vector3 tiltedDir      = Vector3.RotateTowards(downDir, sideDir, angleRad, 0f).normalized;
-        Debug.DrawRay(
-            worldOrigin,
-            tiltedDir * jumpHeight,
-            Color.red,
-            /* duration */ 0.1f,
-            /* depthTest */ true
-        );
-        // 5. cast the ray
-        Ray       ray           = new Ray(worldOrigin, tiltedDir);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, jumpHeight*2, LayerMask.GetMask(terrainLayer)))
-        {
-            _hitList.TryAdd(leg.Name, hit);
-        }
-    }
-    
-    /*
-     * Function that verifies if the player can move basing on the anticipation for leg
-     * It calculates, for a leg, the next position in the step and triggers the step movement
-     */
-    public bool ExecuteStepForLeg(LegAnimator leg)
-    {
+        Vector3 origin = ComputeLegPositionForStep(leg,0.0f);
+        //Debug.DrawLine(origin, origin + -_rigidbody.transform.up * jumpHeight, Color.cyan, 1f);
 
-        //Vector3 relativePos = pivot + horizontalOffset + anticipation;
-        //relativePos.y = _rigidbody.position.y;
-        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        RaycastHit hit;
-        bool res = _hitList.TryGetValue(leg.Name, out hit);
-        // Verify if the hit distance is greater than the step length
-        if (res)
+        var ray = new Ray(origin, -_rigidbody.transform.up);
+        if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
-            if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
+            _hitList.TryAdd(leg.Name, hit);
+        }
+        else
+        {
+            //float angle = -footPlaneSteps / 2 * footPlaneRotationAngle;
+            SweepGroundedForLeg(leg);
+        }
+    }
+
+    private void SweepGroundedForLeg(LegAnimator leg)
+    {
+        Vector3 origin;
+        Ray ray;
+        RaycastHit hit;
+        for (int i = 0; i < footPlaneSteps; i++)
+        {
+            float stepIndex = i - (footPlaneSteps - 1) * 0.5f;
+            float angle = stepIndex * footPlaneRotationAngle;
+            origin = ComputeLegPositionForStep(leg, angle - 25.0f);
+            Vector3 legDirection = origin - _rigidbody.position;
+            // double‐cross gives you the projection of down onto the plane ⟂ legDir
+            Vector3 newDownDirection    = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
+            Debug.DrawLine(origin, origin + newDownDirection * jumpHeight, Color.blue, 1f);
+            //Debug.DrawLine(origin, origin -_rigidbody.transform.up * jumpHeight, Color.blue, 1.0f);
+            ray = new Ray(origin, newDownDirection);
+            if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
             {
-                leg.Lerp = 0;
-                leg.OldPosition  = leg.NewPosition;
-                leg.NewPosition = hit.point;
-            }
-
+                _hitList.TryAdd(leg.Name, hit);
+                break;
+            } 
+        }
+    }
+    
+    public bool GetLegHit(string legName, out RaycastHit hit)
+    {
+        if (_hitList.TryGetValue(legName, out hit))
+        {
             return true;
         }
         else
         {
             return false;
         }
-        
     }
-    
-    
-    /*
-     *
-     public void ExecuteStepForLeg(LegAnimator leg)
-    {
 
-        //Vector3 relativePos = pivot + horizontalOffset + anticipation;
-        //relativePos.y = _rigidbody.position.y;
-        Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+    /// <summary>
+    /// Plans a step: if leg is fully planted and too far from cached hit, updates its target.
+    /// </summary>
+    public bool ExecuteStepForLeg(LegAnimator leg)
+    {
+        if (_hitList.TryGetValue(leg.Name, out var hit))
         {
-            // Verify if the hit distance is greater than the step length
+            //Debug.DrawLine(leg.NewPosition, hit.point, Color.blue);
             if (Vector3.Distance(leg.NewPosition, hit.point) > stepLength && leg.Lerp >= 1f)
             {
-                leg.Lerp = 0;
-                leg.OldPosition  = leg.NewPosition;
+                leg.Lerp = 0f;
+                leg.OldPosition = leg.NewPosition;
                 leg.NewPosition = hit.point;
             }
+            return true;
         }
-            
-           
+        return false;
     }
-     */
-    
-    /*
-     * Function that calculates the Idle position for a leg (using raycasts) and triggers
-     * the repositioning
-     */
+
+    /// <summary>
+    /// Repositions leg to idle stance by raycasting directly under its hip offset.
+    /// </summary>
     public void ExecuteReturnToIdle(LegAnimator leg)
     {
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset;
-        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+        var refTrans = _rigidbody.transform;
+        Vector3 origin = refTrans.position + refTrans.rotation * leg.RelativePosition;
+        var ray = new Ray(origin, -_rigidbody.transform.up);
+        if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)) && leg.Lerp >= 1f)
         {
-            if (leg.Lerp >= 1f)
-            {
-                leg.Lerp = 0;
-                leg.OldPosition  = leg.NewPosition;
-                leg.NewPosition = hit.point;
-            }
-        }
-    }
-    
-    /*
-    public void ExecuteResetPosition(LegAnimator leg)
-    {
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset;
-        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        RaycastHit hit;
-        bool res = _hitList.TryGetValue(leg.Name, out hit);
-        if (res)
-        {
-            leg.Transform.position = hit.point;
-            leg.OldPosition = hit.point;
+            leg.Lerp = 0f;
+            leg.OldPosition = leg.NewPosition;
             leg.NewPosition = hit.point;
-            leg.Lerp = 1f;
         }
     }
-    */
-    
-    /*
-     * Function that calculates the position of legs after a reset of the walking animator and resets it
-     */
-    public void ExecuteResetPosition(LegAnimator leg)
-    {
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset;
-        //Vector3 worldOrigin = ComputeLegPositionForStep(leg);
-        
-        Ray ray = new Ray(worldOrigin, -_rigidbody.transform.up);
-        if (Physics.Raycast(ray, out RaycastHit hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-        {
-            leg.Transform.position = hit.point;
-            leg.OldPosition = hit.point;
-            leg.NewPosition = hit.point;
-            leg.Lerp = 1f;
-        }
-    }
-     
 
-    private Vector3 ComputeLegPositionForStep(LegAnimator leg)
+    /// <summary>
+    /// Immediately sets leg's transform and positions to the ground hit point.
+    /// </summary>
+    public void ExecuteResetPosition(LegAnimator leg)
     {
-        
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier;
-        //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset 
-                              + anticipation;
-        //Debug.DrawLine(reference.position, reference.position + anticipation, Color.green);
-        return worldOrigin;
+        var refTrans = _rigidbody.transform;
+        Vector3 origin = refTrans.position + refTrans.rotation * leg.RelativePosition;
+        var ray = new Ray(origin, -_rigidbody.transform.up);
+        if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
+        {
+            leg.Transform.position = hit.point;
+            leg.OldPosition = hit.point;
+            leg.NewPosition = hit.point;
+            leg.Lerp = 1f;
+        }
     }
-    
-    private Vector3 ComputeLegPositionForOverSlope(LegAnimator leg)
-    {
-        
-        Transform reference = _rigidbody.transform;
-        
-        Quaternion bodyRot = reference.rotation;
-        Vector3 fullOffset = bodyRot * leg.RelativePosition;
-        Vector3 anticipation = new Vector3(_movementDelta.x, _movementDelta.y, _movementDelta.z) * stepAnticipationMultiplier * 1.5f; // Add more anticipation
-        //anticipation = Vector3.ClampMagnitude(anticipation, stepLength);
-        Vector3 worldOrigin = _rigidbody.transform.position 
-                              + fullOffset 
-                              + anticipation;
-        Debug.DrawLine(reference.position, worldOrigin, Color.green);
-        return worldOrigin;
-    }
-    
-    
-    /*
-     * Clears the last FixedUpdate frame hit list, preparing the logic
-     * to the next raycast
-     */
+
+    /// <summary>
+    /// Clears all cached raycast hits for the next physics frame.
+    /// </summary>
     public void FlushRaycasts()
     {
         _hitList.Clear();
     }
-    
-    
-    public Vector3 GetMovementDelta()
-    {
-        return _movementDelta;
-    }
 
-    public List<RaycastHit> GetHitList()
-    {
-        return _hitList.Values.ToList();
-    }
-   
+    /// <summary>
+    /// Returns the last computed movement delta vector.
+    /// </summary>
+    public Vector3 GetMovementDelta() => MovementDelta;
+
+    /// <summary>
+    /// Returns a list of all current ground hit points.
+    /// </summary>
+    public List<RaycastHit> GetHitList() => _hitList.Values.ToList();
+
+    /// <summary>
+    /// Provides the set of legs managed by this raycast manager for gizmos.
+    /// </summary>
     public void SetLegs(List<LegAnimator> legs)
     {
         _legs = legs;
     }
-    
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        foreach (var leg in _legs)
-        {
-         
-            Vector3 origin = ComputeLegPositionForStep(leg);
-            Vector3 direction = -_rigidbody.transform.up.normalized;
+    #endregion
 
-            // Draw full test ray
-            Gizmos.DrawLine(origin, origin + direction * jumpHeight);
-            // Draw every test ray in Play mode
-            Debug.DrawRay(origin, direction * jumpHeight, Color.yellow);
-            RaycastHit hit;
-            // Show hit point
-            bool res = _hitList.TryGetValue(leg.Name, out hit);
-            if (res)
-            {
-                Gizmos.color = Color.red;
-                Gizmos.DrawLine(origin, hit.point);
-                Gizmos.DrawSphere(hit.point, 0.15f);
-                Gizmos.color = Color.yellow;  // reset for next leg
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawSphere(leg.NewPosition, 0.10f);
-            }
-                
-            
-        }
+    #region Private Helpers
+    /// <summary>
+    /// Calculates world-space origin for a leg raycast based on anticipation and rotation.
+    /// </summary>
+    private Vector3 ComputeLegPositionForStep(LegAnimator leg, float tiltAngleDeg)
+    {
+        var body = _rigidbody.transform;
+        Vector3 offset = body.rotation * leg.RelativePosition;
+        Vector3 anticipation = MovementDelta * stepAnticipationMultiplier;
+        // Assume RotationDelta is a quaternion representing some rotation delta
+        RotationDelta.ToAngleAxis(out float angle, out Vector3 axis);
+
+        float anticipatedAngle = angle * rotAnticipationMultiplier;
+
+        Quaternion anticipatedRotation = Quaternion.AngleAxis(anticipatedAngle, axis);
+
+        Vector3 rotatedOffset = anticipatedRotation * offset;
+        //Vector3 rotAnt = (rotatedOffset - offset) * rotAnticipationMultiplier;
+        Vector3 origin = body.position + rotatedOffset + anticipation;
+        
+        // Compute relative rotation of the projection
+        Vector3 v = rotatedOffset + anticipation;
+        Vector3 newAxis = Vector3.Cross(v, body.up).normalized;
+        Vector3 tiltedV = Quaternion.AngleAxis(tiltAngleDeg, newAxis) * v;
+        Vector3 finalPos = body.position + tiltedV;
+        Debug.DrawLine(body.position, finalPos, Color.red);
+
+        return finalPos;
     }
-    
-    /*
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        foreach (var leg in _legs)
-        {
-         
-            Vector3 origin = ComputeLegPositionForStep(leg);
-            Vector3 direction = -_rigidbody.transform.up.normalized;
-
-            // Draw full test ray
-            Gizmos.DrawLine(origin, origin + direction * jumpHeight);
-            // Draw every test ray in Play mode
-            Debug.DrawRay(origin, direction * jumpHeight, Color.yellow);
-            // Show hit point
-            if (Physics.Raycast(origin, direction, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
-            {
-                Gizmos.color = Color.red;
-                Gizmos.DrawLine(origin, hit.point);
-                Gizmos.DrawSphere(hit.point, 0.15f);
-                Gizmos.color = Color.yellow;  // reset for next leg
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawSphere(leg.NewPosition, 0.10f);
-            }
-        }
-    }*/
-  
-    
-    
+    #endregion
 }
