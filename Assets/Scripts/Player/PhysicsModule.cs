@@ -314,7 +314,6 @@ namespace Player
         public void RepositionOnFall()
         {
             Reposition(_savedPosition, _savedRotation);
-            // TODO: Call here SFX and VFX associated
             Player.Instance.TakeDamage(20.0f);
         }
 
