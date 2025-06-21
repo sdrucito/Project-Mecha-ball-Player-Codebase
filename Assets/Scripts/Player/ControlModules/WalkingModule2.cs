@@ -61,8 +61,6 @@ namespace Player.ControlModules
             FixedUpdateManager.Instance.Register(this);
             if (PlayerInputManager.Instance != null)
             {
-                PlayerInputManager.Instance.OnMoveInput += HandleMovement;
-                PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 PlayerKneeWalkAnimator.OnOpenFinished += OnOpenFinished;
                 ResetMovementData();
                 PlayerKneeWalkAnimator.enabled = true;  
@@ -70,6 +68,7 @@ namespace Player.ControlModules
                 _rigidbody.linearDamping = OverrideLinearDrag;
                 _rigidbody.angularDamping = OverrideAngularDrag;
                 _rigidbody.WakeUp();
+                
             }
         }
 
@@ -90,6 +89,8 @@ namespace Player.ControlModules
         #region Input Handlers
         private void OnOpenFinished()
         {
+            PlayerInputManager.Instance.OnMoveInput += HandleMovement;
+            PlayerInputManager.Instance.OnLookInput += HandleDirection;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
         }
 

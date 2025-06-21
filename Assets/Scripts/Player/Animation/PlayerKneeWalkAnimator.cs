@@ -213,7 +213,6 @@ namespace Player.Animation
 
             bool isMoving = VerifyMove();
             bool isGrounded = Player.Instance.IsGrounded();
-
             if (!isGrounded && !_wasGrounded)
             {
                 _currentGroup = StepGroup.Floating;
