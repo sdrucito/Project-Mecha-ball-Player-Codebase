@@ -162,6 +162,7 @@ namespace Player
                     PlayerState = PlayerState.Hit;
                     PlayerAnimator.TakeDamage();
                 }
+                Debug.Log("Calling playing sound for damage and vfx");
                 PlayerSound.TakeDamage();
                 PlayerVFX.TakeDamage();
                 CameraShake.Instance.Shake("Damage");

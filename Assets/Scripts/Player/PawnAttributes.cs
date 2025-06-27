@@ -23,6 +23,7 @@ namespace Player
                 if(_hud != null)
                     OnHealthChange += _hud.SetHealth;
             }
+            ResetMaxHealth();
             IsDead = false;
         }
         

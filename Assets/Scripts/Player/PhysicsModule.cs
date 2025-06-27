@@ -187,7 +187,7 @@ namespace Player
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
             Player player = Player.Instance;
-            if (player.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
+            if (CanUpdateBallGround())
             {
                 if (hitData.Layer == _groundLayer)
                     _groundNormal = GetCollisionNormal(hitData);
@@ -197,6 +197,14 @@ namespace Player
                 // Pass the velocity to modulate the volume of the hit ground
                 Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
             }
+        }
+
+        private static bool CanUpdateBallGround()
+        {
+            Player player = Player.Instance;
+            return (player.ControlModuleManager.GetActiveModuleName() == "Ball" &&
+                    !player.ControlModuleManager.IsSwitching) || (player.ControlModuleManager.GetActiveModuleName() == "Walk" &&
+                                                                  player.ControlModuleManager.IsSwitching);
         }
 
         /// <summary>
