@@ -112,8 +112,11 @@ namespace Player
             {
                 return false;
             }
+
             if (movement.magnitude <= 0f)
+            {
                 return true;
+            }
 
             var hits = Player.Instance.RaycastManager.GetHitList();
             float sumCorrelation = 0f;
@@ -123,8 +126,11 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
-            if(sumCorrelation == 0f)
-                Debug.Log("Computed correlation: " + sumCorrelation);
+
+            if (sumCorrelation > minCorrelationForTransition)
+            {
+                Debug.DrawLine(transform.position, transform.position + movement*10f, Color.green);
+            }
             return sumCorrelation > minCorrelationForTransition;
         }
 

@@ -116,6 +116,7 @@ namespace Player.Animation
             else
             {
                 // Rollback module switch
+                Player.Instance.PlayerSound.OpenDenial();
                 Player.Instance.ControlModuleManager.RollbackSwitch();
             }
         }
