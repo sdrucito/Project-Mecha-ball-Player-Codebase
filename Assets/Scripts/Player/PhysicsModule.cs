@@ -328,7 +328,7 @@ namespace Player
         public void RepositionOnFall()
         {
             Reposition(_savedPosition, _savedRotation);
-            Player.Instance.TakeDamage(20.0f);
+            Player.Instance.TakeDamage(10.0f);
         }
 
         public void Reposition(Vector3 position, Quaternion rotation)
