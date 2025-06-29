@@ -45,6 +45,11 @@ public class PlayerSound : MonoBehaviour
     {
         AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotSwitchDenied.eventReference, transform.position);
     }
+    
+    public void Death()
+    {
+        AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotDeath.eventReference, transform.position);
+    }
 
     public void HitGround(string surfaceTag, float velocity)
     {

@@ -151,6 +151,7 @@ namespace Player
         public void Die()
         {
             OnPlayerDeath?.Invoke();
+            PlayerSound.Death();
         } 
         public void TakeDamage(float damage)
         {
