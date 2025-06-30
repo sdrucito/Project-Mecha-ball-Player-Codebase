@@ -100,12 +100,16 @@ public class RaycastManager : MonoBehaviour
     public void ExecuteGroundedForLeg(LegAnimator leg)
     {
         Vector3 origin = ComputeLegPositionForStep(leg,0.0f);
-        //Debug.DrawLine(origin, origin + -_rigidbody.transform.up * jumpHeight, Color.cyan, 1f);
 
         var ray = new Ray(origin, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             _hitList.TryAdd(leg.Name, hit);
+            if (leg.Lerp < 1f)
+            {
+                // If step is executing update step
+                leg.NewPosition = hit.point;
+            }
         }
         else
         {

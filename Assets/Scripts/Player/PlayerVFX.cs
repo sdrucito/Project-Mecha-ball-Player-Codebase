@@ -31,7 +31,6 @@ namespace Player
         {
             // Wait until we're allowed to damage
             yield return new WaitUntil(() => canDamage);
-            Debug.Log("Starting damage VFX on slot " + materialSlot);
 
             var mats = materialRenderer.materials;
             if (materialSlot < 0 || materialSlot >= mats.Length)

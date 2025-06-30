@@ -134,7 +134,7 @@ namespace Player.ControlModules
             // Post-movement phase
             ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
             PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
-            //ApplyGravity();
+            ApplyGravity();
         }
         
         #region Pre-movement and rotation methods

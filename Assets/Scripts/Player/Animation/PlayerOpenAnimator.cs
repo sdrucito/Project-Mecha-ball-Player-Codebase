@@ -138,40 +138,6 @@ namespace Player.Animation
                 Player.Instance.ControlModuleManager.RollbackSwitch();
             }
         }
-
-        IEnumerator AlignFast(Quaternion targetRot, float duration)
-        {
-            Rigidbody rb = Player.Instance.Rigidbody;
-            Player player = Player.Instance;
-            Quaternion start = rb.rotation;
-            float t = 0f;
-            bool success = true;
-
-            while (t < duration)
-            {
-                if (!player.IsGrounded())
-                {
-                    Debug.Log("Not grounded anymore");
-                    success = false;
-                    break;
-                }
-                t += Time.fixedDeltaTime;
-                Quaternion r = Quaternion.Slerp(start, targetRot, t / duration);
-                rb.MoveRotation(r);
-                rb.AddForce(-rb.linearVelocity*speedDownForce, ForceMode.VelocityChange);
-                yield return null;
-            }
-            if(success)
-                _onAligned?.Invoke();
-        }
-        
-        private bool IsAreaClear(Vector3 center, Vector2 halfExtentsXZ)
-        {
-            Vector3 halfExtents = new Vector3(halfExtentsXZ.x, 0.05f, halfExtentsXZ.y);
-            Vector3 boxCenter = center + Vector3.down * 0.05f;
-            Collider[] hits = Physics.OverlapBox(boxCenter, halfExtents, Quaternion.identity, groundLayerMask);
-            return hits.Length == 0;
-        }
         
         private bool IsGroundCoverageSufficient(Vector3 center, Vector2 halfExtentsPlane, Vector3 groundNormal, float requiredCoverage = 0.7f, int samplesPerAxis = 10) {
             // Build an orthonormal basis (tangent, bitangent, normal)
