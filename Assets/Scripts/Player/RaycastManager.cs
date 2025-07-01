@@ -130,7 +130,7 @@ public class RaycastManager : MonoBehaviour
             origin = ComputeLegPositionForStep(leg, angle - 25.0f);
             Vector3 legDirection = origin - _rigidbody.position;
             // double‐cross gives you the projection of down onto the plane ⟂ legDir
-            Vector3 newDownDirection    = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
+            Vector3 newDownDirection = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
             Debug.DrawLine(origin, origin + newDownDirection * jumpHeight, Color.blue, 1f);
             //Debug.DrawLine(origin, origin -_rigidbody.transform.up * jumpHeight, Color.blue, 1.0f);
             ray = new Ray(origin, newDownDirection);

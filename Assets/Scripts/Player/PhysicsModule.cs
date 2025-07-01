@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Player.PlayerController;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Player
 {
@@ -35,8 +36,10 @@ namespace Player
     public class PhysicsModule : MonoBehaviour, IFixedUpdateObserver
     {
         #region Serialized Parameters
-        [Header("Ground Transition Settings")]
-        [SerializeField] private float minCorrelationForTransition = 0.9f;
+        [Header("Ground Settings")]
+        [SerializeField] private float minCorrelationMove = 0.9f;
+        [SerializeField] private float ballHalfHeight = 0.5f;
+        [SerializeField] private float repositionYOffset = 0.2f;
         #endregion
 
         #region State Fields
@@ -95,7 +98,7 @@ namespace Player
             var currentPosition = Player.Instance.Rigidbody.position;
             _velocity = (currentPosition - _lastPosition) / Time.fixedDeltaTime;
             _lastPosition = currentPosition;
-            //Debug.Log("[PhysicsModule] Current velocity: "+_velocity.magnitude);
+            CastGroundRollback();
         }
 
         #endregion
@@ -118,6 +121,22 @@ namespace Player
             else
             {
                 UpdateBallGrounded();
+            }
+        }
+
+        public void CastGroundRollback()
+        {
+            Player player = Player.Instance;
+
+            if (!IsGrounded())
+            {
+                Vector3 origin = player.Rigidbody.position;
+                var ray = new Ray(origin, Vector3.down);
+                if (Physics.Raycast(ray, out var hit, ballHalfHeight, _groundLayer))
+                {
+                    // Even if player is not grounded, it is grounded, so I inject a ground layer
+                    InjectGroundLayer();
+                }
             }
         }
 
@@ -145,17 +164,19 @@ namespace Player
                     sumCorrelation += corr;
             }
 
-            if (sumCorrelation > minCorrelationForTransition)
+            if (sumCorrelation > minCorrelationMove)
             {
                 Debug.DrawLine(transform.position, transform.position + movement*10f, Color.green);
             }
-            return sumCorrelation > minCorrelationForTransition;
+            return sumCorrelation > minCorrelationMove;
         }
 
         public void InjectGroundLayer()
         {
             _collisionLayers.Add(_groundLayer);
         }
+        
+        
 
         /// <summary>
         /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
@@ -209,7 +230,6 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            Player player = Player.Instance;
             if (CanUpdateBallGround())
             {
                 if (hitData.Layer == _groundLayer)
@@ -285,7 +305,7 @@ namespace Player
         {
             hitData.CollisionInfo.GetContacts(_contactPoints);
             GetCollisionPoint(out ContactPoint? cp);
-            return cp?.normal ?? Vector3.zero;
+            return cp?.normal ?? Vector3.up;
         }
 
         /// <summary>
@@ -369,6 +389,7 @@ namespace Player
         public void SaveReposition()
         {
             _savedPosition = transform.position;
+            _savedPosition.y += repositionYOffset;
             _savedRotation = transform.rotation;
         }
         
