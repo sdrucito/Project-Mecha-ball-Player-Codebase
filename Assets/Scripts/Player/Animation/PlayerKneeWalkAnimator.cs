@@ -226,7 +226,7 @@ namespace Player.Animation
             }
             else
             {
-                if (IsStartedMoving(isMoving))
+                if (IsStartedMoving(isMoving) || (_wasMoving && isMoving && _currentGroup == StepGroup.Idle))
                 {
                     _currentGroup = StepGroup.GroupA;
                     StartStepForGroup(_currentGroup);
