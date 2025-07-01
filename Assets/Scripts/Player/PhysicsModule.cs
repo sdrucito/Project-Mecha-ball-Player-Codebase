@@ -32,7 +32,7 @@ namespace Player
     /// Component that manages all physics interactions for the player,
     /// handling collision callbacks, grounding logic, and terrain-normal updates.
     /// </summary>
-    public class PhysicsModule : MonoBehaviour
+    public class PhysicsModule : MonoBehaviour, IFixedUpdateObserver
     {
         #region Serialized Parameters
         [Header("Ground Transition Settings")]
@@ -48,12 +48,15 @@ namespace Player
         private Vector2 _whitenScale = Vector2.one;
         private Vector3 _savedPosition = Vector3.zero;
         private Quaternion _savedRotation = Quaternion.identity;
+        private Vector3 _lastPosition;
+        private Vector3 _velocity;
         #endregion
 
         #region Contact & Collision Queues
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
         private List<int> _collisionLayers = new List<int>();
         #endregion
+        public int FixedUpdatePriority { get; set; }
 
         #region Public Properties
         /// <summary>
@@ -76,9 +79,24 @@ namespace Player
         private void Awake()
         {
             _groundLayer = LayerMask.NameToLayer("Ground");
+            _lastPosition = Player.Instance.Rigidbody.position;
         }
         
-        
+        private void OnEnable() {
+            FixedUpdateManager.Instance.Register(this);
+        }
+
+        private void OnDisable() {
+            FixedUpdateManager.Instance?.Unregister(this);
+        }
+
+        public void ObservedFixedUpdate()
+        {
+            var currentPosition = Player.Instance.Rigidbody.position;
+            _velocity = (currentPosition - _lastPosition) / Time.fixedDeltaTime;
+            _lastPosition = currentPosition;
+            //Debug.Log("[PhysicsModule] Current velocity: "+_velocity.magnitude);
+        }
 
         #endregion
 
@@ -139,6 +157,11 @@ namespace Player
         public void UpdateWhitenScale(Vector2 scale)
         {
             _whitenScale = scale;
+        }
+        
+        public Vector3 GetVelocity()
+        {
+            return _velocity;
         }
         #endregion
 

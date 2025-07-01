@@ -12,6 +12,7 @@ namespace Player.ControlModules
         [SerializeField] private float jumpImpulseMagnitude;
         [SerializeField] private float sprintImpulseMagnitude;
         [SerializeField] private float sprintCooldownTime;
+        [SerializeField] private float maxSpeed = 15f;
         
         private Rigidbody _rigidbody;
         [SerializeField] private float OverrideLinearDrag;
@@ -66,7 +67,8 @@ namespace Player.ControlModules
             if (CanSprint(direction, player) || CanSprintInfinite)
             {
                 //Debug.Log("Firing sprint impulse"+direction);
-                player.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
+                if (Player.Instance.PhysicsModule.GetVelocity().magnitude < maxSpeed)
+                    player.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
                 StartCoroutine(SprintCoroutine());
                 player.PlayerSound.Sprint();
             }

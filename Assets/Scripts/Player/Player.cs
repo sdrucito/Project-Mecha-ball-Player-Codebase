@@ -75,6 +75,7 @@ namespace Player
                 
             }
             
+            CustomDeadZone.Instance.ResetCameraPivotPosition();
             Debug.Log("Setting input enabled");
             PlayerInputManager.Instance.SetInputEnabled(true);
 
