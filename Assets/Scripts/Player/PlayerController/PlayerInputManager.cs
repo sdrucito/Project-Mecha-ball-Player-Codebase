@@ -80,7 +80,7 @@ namespace Player.PlayerController
 
         private void FixedUpdate()
         {
-            CameraTransitionCheck();
+            //CameraTransitionCheck();
             
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnMoveInput?.Invoke(inputCameraRelative);
@@ -190,10 +190,14 @@ namespace Player.PlayerController
             action.Disable();  
             action.Enable();
         }
-        
+
+        public float GetInputRotation()
+        {
+            return _inputRotationAngle;
+        }
         public void SetInputRotation(float angle)
         {
-            _inputRotationAngle += angle;
+            _inputRotationAngle = angle;
         }
         #endregion
     }
