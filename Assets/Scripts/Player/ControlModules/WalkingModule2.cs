@@ -92,6 +92,7 @@ namespace Player.ControlModules
             PlayerInputManager.Instance.OnMoveInput += HandleMovement;
             PlayerInputManager.Instance.OnLookInput += HandleDirection;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+            Player.Instance.PlayerVFX.ResetTrails();
         }
 
         private void ResetMovementData()

@@ -30,6 +30,7 @@ namespace Player.ControlModules
         private void Awake()
         {
             name = "Ball";
+            FixedUpdatePriority = 0;
         }
 
         private void Start()
@@ -45,10 +46,13 @@ namespace Player.ControlModules
                 _physicsModule = Player.Instance.PhysicsModule;
             }
             _physicsModule.CastGroundRollback();
+            Player.Instance.PlayerVFX.UpdateTrailRenders(_physicsModule.GetVelocity().magnitude);
         }
 
         public void OnEnable()
         {
+            FixedUpdateManager.Instance.Register(this);
+
             PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
@@ -61,6 +65,8 @@ namespace Player.ControlModules
 
         public void OnDisable()
         {
+            FixedUpdateManager.Instance?.Unregister(this);
+
             PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
         }

@@ -6,17 +6,28 @@ namespace Player
 {
     public class PlayerVFX : MonoBehaviour
     {
+        [Header("Materials Renderer")]
         private Material _currentFireMaterial;
         private float _lastHealthValue = 1.0f;
         [SerializeField] private Material damageMaterial;
         [SerializeField] private Material baseMaterial;
         [SerializeField] private Renderer materialRenderer;
         [SerializeField] private int[] materialSlots;
-        
+        [Header("Trail Renderer")]
+        [SerializeField] private float minTrailVelocity;
+        [SerializeField] private float maxTrailVelocity;
+        [SerializeField] private float minTrailTime;
+        [SerializeField] private float maxTrailTime;
+        [SerializeField] float fadeDuration = 0.5f;
+        private TrailRenderer _trailRenderer;
+
         private bool canDamage = true;
         void Start()
         {
             Player.Instance.PawnAttributes.OnHealthChange += SetGlowColor;
+            _trailRenderer = GetComponent<TrailRenderer>();
+            _trailRenderer.time = 0.0f;
+            Debug.Log("Setting Trail Renderer");
         }
 
         public void TakeDamage()
@@ -124,6 +135,30 @@ namespace Player
 
                 materialRenderer.materials = materials;
                     
+            }
+        }
+
+        public void ResetTrails()
+        {
+            _trailRenderer.emitting = false;
+        }
+        public void UpdateTrailRenders(float velocity)
+        {
+            Debug.Log("Trail velocity: " + velocity);
+            if (velocity > minTrailVelocity && velocity <= maxTrailVelocity)
+            {
+                _trailRenderer.emitting = true;
+                float t = Mathf.InverseLerp(minTrailVelocity, maxTrailVelocity, velocity);
+                _trailRenderer.time = Mathf.Lerp(minTrailTime, maxTrailTime, t);
+            }else if (velocity > maxTrailVelocity)
+            {
+                Debug.Log("Stop emitting");
+                _trailRenderer.emitting = false;
+            }
+            else
+            {
+                float fadeSpeed = maxTrailTime / fadeDuration;
+                _trailRenderer.time = Mathf.MoveTowards(_trailRenderer.time, 0.0f, fadeSpeed*Time.fixedDeltaTime);
             }
         }
     }
