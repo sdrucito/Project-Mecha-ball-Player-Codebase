@@ -26,7 +26,7 @@ namespace Player.PlayerController
         [SerializeField] private bool MouseEnabled = false;
         
         public event Action<Vector2> OnMoveInput;
-        public event Action<Vector2> OnLookInput;
+        //public event Action<Vector2> OnLookInput;
         public event Action OnJumpInput;
         public event Action OnModeChangeInput;
         public event Action<Vector2> OnSprintImpulseInput;
@@ -97,7 +97,7 @@ namespace Player.PlayerController
             }
 
             var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle+ISOMETRIC_OFFSET);
-            OnLookInput?.Invoke(rotationCameraRelative);
+            //OnLookInput?.Invoke(rotationCameraRelative);
 
             UpdateCursorState();
             //Debug.Log("INPUT ENABLED: " + _playerInput.enabled);

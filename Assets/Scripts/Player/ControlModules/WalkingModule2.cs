@@ -62,7 +62,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput += HandleMovement;
-                PlayerInputManager.Instance.OnLookInput += HandleDirection;
+                //PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 PlayerKneeWalkAnimator.OnOpenFinished += OnOpenFinished;
                 ResetMovementData();
                 PlayerKneeWalkAnimator.enabled = true;  
@@ -79,7 +79,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
-                PlayerInputManager.Instance.OnLookInput -= HandleDirection;
+                //PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
                 PlayerKneeWalkAnimator.OnOpenFinished -= OnOpenFinished;
 
