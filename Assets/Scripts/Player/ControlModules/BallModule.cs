@@ -19,12 +19,13 @@ namespace Player.ControlModules
         [SerializeField] private float OverrideLinearDrag;
         [SerializeField] private float OverrideAngularDrag;
             
-            
+        [Header("Jump Crosshair")]
         [SerializeField] private LayerMask groundMask;
         [SerializeField] private float maxDistance = 100f;
         private LineRenderer lineRenderer;
         [SerializeField] private GameObject jumpCrosshair;
         private GameObject activeJumpCrossahair;
+        [SerializeField] private float minJumpCrosshairHeight = 2.0f;
         
         [Header("Debug")] public bool CanJumpInfinite = false;
         [Header("Debug")] public bool CanSprintInfinite = false;
@@ -112,9 +113,9 @@ namespace Player.ControlModules
 
             if (isJumping)
             {
-                Ray ray = new Ray(transform.parent.position, Vector3.down);
+                Ray ray = new Ray(transform.position, Vector3.down);
 
-                if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, groundMask))
+                if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, groundMask) && hit.distance > minJumpCrosshairHeight)
                 {
                     lineRenderer.enabled = true;
                     lineRenderer.SetPosition(0, transform.position);
