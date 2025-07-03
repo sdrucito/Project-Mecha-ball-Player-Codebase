@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -21,6 +22,7 @@ namespace Player.PlayerController
         public bool IsCameraTransition { get; set; } = false;
         private bool _isInputGloballyDisabled = false;
         private const float ISOMETRIC_OFFSET = 45;
+        [SerializeField] private const float DRIFT_THRESHOLD = 0.1f;
 
         [SerializeField] private bool BallImpulseOnMove = true;
         [SerializeField] private bool MouseEnabled = false;
@@ -81,7 +83,8 @@ namespace Player.PlayerController
         private void FixedUpdate()
         {
             //CameraTransitionCheck();
-            
+            if (_currentMoveInput.magnitude < DRIFT_THRESHOLD)
+                _currentMoveInput = Vector2.zero;
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             OnMoveInput?.Invoke(inputCameraRelative);
             if (BallImpulseOnMove)
