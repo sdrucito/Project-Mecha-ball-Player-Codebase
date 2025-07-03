@@ -18,7 +18,14 @@ namespace Player.ControlModules
         private PhysicsModule _physicsModule;
         [SerializeField] private float OverrideLinearDrag;
         [SerializeField] private float OverrideAngularDrag;
-
+            
+            
+        [SerializeField] private LayerMask groundMask;
+        [SerializeField] private float maxDistance = 100f;
+        private LineRenderer lineRenderer;
+        [SerializeField] private GameObject jumpCrosshair;
+        private GameObject activeJumpCrossahair;
+        
         [Header("Debug")] public bool CanJumpInfinite = false;
         [Header("Debug")] public bool CanSprintInfinite = false;
         private bool _canSprint = true;
@@ -47,6 +54,8 @@ namespace Player.ControlModules
             }
             _physicsModule.CastGroundRollback();
             Player.Instance.PlayerVFX.UpdateTrailRenders(_physicsModule.GetVelocity().magnitude);
+
+            JumpCrosshairLogic();
         }
 
         public void OnEnable()
@@ -61,6 +70,10 @@ namespace Player.ControlModules
             _rigidbody.angularDamping = OverrideAngularDrag;
             _rigidbody.WakeUp();
             Player.Instance.PhysicsModule.InjectGroundLayer();
+            
+            if (lineRenderer == null)
+                lineRenderer = GetComponent<LineRenderer>();
+            lineRenderer.enabled = false;
         }
 
         public void OnDisable()
@@ -100,6 +113,51 @@ namespace Player.ControlModules
             return player.IsGrounded() && _canSprint && player.PlayerState != PlayerState.Dead && direction.magnitude > 0.05f;
         }
 
+        private void JumpCrosshairLogic()
+        {
+            bool isJumping = !Player.Instance.IsGrounded();
+
+            if (isJumping)
+            {
+                Ray ray = new Ray(transform.parent.position, Vector3.down);
+
+                if (Physics.Raycast(ray, out RaycastHit hit, maxDistance, groundMask))
+                {
+                    lineRenderer.enabled = true;
+                    lineRenderer.SetPosition(0, transform.position);
+                    lineRenderer.SetPosition(1, hit.point);
+                    
+                    if (activeJumpCrossahair == null)
+                    {
+                        activeJumpCrossahair = Instantiate(jumpCrosshair);
+                    }
+                    Vector3 circlePos = hit.point + Vector3.up * 0.01f;
+                    activeJumpCrossahair.transform.position = circlePos;
+                    activeJumpCrossahair.transform.rotation = Quaternion.LookRotation(hit.normal);
+                }
+                else
+                {
+                    lineRenderer.enabled = false;
+                    if (activeJumpCrossahair != null)
+                    {
+                        Destroy(activeJumpCrossahair);
+                        activeJumpCrossahair = null;
+                    }
+                }
+            }
+            else
+            {
+                lineRenderer.enabled = false;
+                if (activeJumpCrossahair != null)
+                {
+                    Destroy(activeJumpCrossahair);
+                    activeJumpCrossahair = null;
+                }
+            }
+            lineRenderer.material.mainTextureOffset += new Vector2(Time.deltaTime * 2, Time.deltaTime * 2);
+            
+        }
+        
         private IEnumerator SprintCoroutine()
         {
             _canSprint = false;

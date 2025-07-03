@@ -66,7 +66,8 @@ namespace Player
         /// Indicates whether the module is currently rotating to align with terrain.
         /// </summary>
         public bool IsRotating => _isRotating;
-        
+
+        [SerializeField] private float maxAngularSpeed = 10f;
         /*
         /// <summary>
         /// Indicates whether the module has to reposition the player to the last saved position/rotation
@@ -99,6 +100,8 @@ namespace Player
             _velocity = (currentPosition - _lastPosition) / Time.fixedDeltaTime;
             _lastPosition = currentPosition;
             CastGroundRollback();
+            
+            LimitAngularVelocity();
         }
 
         #endregion
@@ -190,6 +193,18 @@ namespace Player
         {
             return _velocity;
         }
+
+        void LimitAngularVelocity()
+        {
+            var rb = Player.Instance.Rigidbody;
+
+            float angularSpeed = rb.angularVelocity.magnitude;
+            if (angularSpeed > maxAngularSpeed)
+            {
+                rb.angularVelocity = rb.angularVelocity.normalized * maxAngularSpeed;
+            }
+        }
+        
         #endregion
 
         #region Ground Normal Computation
