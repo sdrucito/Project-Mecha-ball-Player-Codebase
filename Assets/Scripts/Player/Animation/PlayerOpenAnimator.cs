@@ -66,11 +66,10 @@ namespace Player.Animation
             Player player = Player.Instance;
             _integralError = 0f;
 
-            // Tuning clamps:
-            float maxPTerm = 10f;
+            float maxPTerm = 5f;
             float maxDTerm = 5f;
-            float maxTorque = 20f;
-            float maxAngularVelocity = 10f;
+            float maxTorque = 15f;
+            float maxAngularVelocity = 8f;
 
             bool success = true;
             while (true)

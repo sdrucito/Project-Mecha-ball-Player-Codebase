@@ -144,7 +144,6 @@ namespace Player
         }
         public void UpdateTrailRenders(float velocity)
         {
-            Debug.Log("Trail velocity: " + velocity);
             if (velocity > minTrailVelocity && velocity <= maxTrailVelocity)
             {
                 _trailRenderer.emitting = true;
@@ -152,8 +151,8 @@ namespace Player
                 _trailRenderer.time = Mathf.Lerp(minTrailTime, maxTrailTime, t);
             }else if (velocity > maxTrailVelocity)
             {
-                Debug.Log("Stop emitting");
                 _trailRenderer.emitting = false;
+                _trailRenderer.time = 0.0f;
             }
             else
             {

@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 
 namespace Player.ControlModules
 {
-    public class BallModule : ControlModule, IFixedUpdateObserver
+    public class BallModule : ControlModule, IFixedUpdateObserver, IUpdateObserver
     {
     
         [SerializeField] private float jumpImpulseMagnitude;
@@ -31,6 +31,7 @@ namespace Player.ControlModules
         private bool _canSprint = true;
         private float _runningSprintCooldown = 0.0f;
         
+        public int UpdatePriority { get; set; }
         public int FixedUpdatePriority { get; set; }
 
         
@@ -38,12 +39,19 @@ namespace Player.ControlModules
         {
             name = "Ball";
             FixedUpdatePriority = 0;
+            UpdatePriority = 0;
         }
 
         private void Start()
         {
             _rigidbody = Player.Instance.Rigidbody;
             _physicsModule = Player.Instance.PhysicsModule;
+        }
+
+        public void ObservedUpdate()
+        {
+            Player.Instance.PlayerVFX.UpdateTrailRenders(_physicsModule.GetVelocity().magnitude);
+            JumpCrosshairLogic();        
         }
 
         public void ObservedFixedUpdate()
@@ -53,15 +61,12 @@ namespace Player.ControlModules
                 _physicsModule = Player.Instance.PhysicsModule;
             }
             _physicsModule.CastGroundRollback();
-            Player.Instance.PlayerVFX.UpdateTrailRenders(_physicsModule.GetVelocity().magnitude);
-
-            JumpCrosshairLogic();
         }
 
         public void OnEnable()
         {
             FixedUpdateManager.Instance.Register(this);
-
+            UpdateManager.Instance.Register(this);
             PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
@@ -79,7 +84,7 @@ namespace Player.ControlModules
         public void OnDisable()
         {
             FixedUpdateManager.Instance?.Unregister(this);
-
+            UpdateManager.Instance?.Unregister(this);
             PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
         }
