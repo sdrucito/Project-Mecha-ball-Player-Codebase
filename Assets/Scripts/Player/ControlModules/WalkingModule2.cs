@@ -61,8 +61,6 @@ namespace Player.ControlModules
             FixedUpdateManager.Instance.Register(this);
             if (PlayerInputManager.Instance != null)
             {
-                PlayerInputManager.Instance.OnMoveInput += HandleMovement;
-                //PlayerInputManager.Instance.OnLookInput += HandleDirection;
                 PlayerKneeWalkAnimator.OnOpenFinished += OnOpenFinished;
                 ResetMovementData();
                 PlayerKneeWalkAnimator.enabled = true;  
@@ -70,6 +68,7 @@ namespace Player.ControlModules
                 _rigidbody.linearDamping = OverrideLinearDrag;
                 _rigidbody.angularDamping = OverrideAngularDrag;
                 _rigidbody.WakeUp();
+                
             }
         }
 
@@ -79,7 +78,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
-                //PlayerInputManager.Instance.OnLookInput -= HandleDirection;
+                PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
                 PlayerKneeWalkAnimator.OnOpenFinished -= OnOpenFinished;
 
@@ -90,7 +89,10 @@ namespace Player.ControlModules
         #region Input Handlers
         private void OnOpenFinished()
         {
+            PlayerInputManager.Instance.OnMoveInput += HandleMovement;
+            PlayerInputManager.Instance.OnLookInput += HandleDirection;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
+            Player.Instance.PlayerVFX.ResetTrails();
         }
 
         private void ResetMovementData()
@@ -133,7 +135,7 @@ namespace Player.ControlModules
             // Post-movement phase
             ValidateMovement();                                 // Check effective movement for walk animator and raycast manager
             PlayerKneeWalkAnimator.ExecuteGrounded();           // Re-execute ground check after movement and rotation delta applied
-            //ApplyGravity();
+            ApplyGravity();
         }
         
         #region Pre-movement and rotation methods
@@ -198,32 +200,36 @@ namespace Player.ControlModules
             if(Player.Instance.PlayerState == PlayerState.Dead) return;
             
             var groundNormal = Player.Instance.GetGroundNormal();
-            Debug.DrawLine(_rigidbody.position,_rigidbody.position + groundNormal * 2.0f, Color.red);
             var projectedMove = ProjectedMove(_inputVector,groundNormal);
             if(Player.Instance.IsGrounded())
                 ApplyTouchGrounded();
-            ExecuteRotation(projectedMove, groundNormal);
-            if (Player.Instance.CanMove(projectedMove) && !_wasBlocked)
+            if (Player.Instance.CanMove(projectedMove))
             {
-                Player.Instance.RaycastManager.MovementDelta = Vector3.zero;
-                Player.Instance.RaycastManager.RotationDelta = Quaternion.identity;
-                PlayerKneeWalkAnimator.ExecuteGrounded(); 
-                groundNormal = Player.Instance.GetGroundNormal();
-                projectedMove = ProjectedMove(_inputVector, groundNormal);
+                if (!_wasBlocked)
+                {
+                    ExecuteRotation(projectedMove, groundNormal);
+                    Player.Instance.RaycastManager.MovementDelta = Vector3.zero;
+                    Player.Instance.RaycastManager.RotationDelta = Quaternion.identity;
+                    PlayerKneeWalkAnimator.ExecuteGrounded(); 
+                    groundNormal = Player.Instance.GetGroundNormal();
+                    projectedMove = ProjectedMove(_inputVector, groundNormal);
                 
-                _lastFixedRotationApplied = GetPredictedRotation();     // Re-call the prediction that now is "real"
+                    _lastFixedRotationApplied = GetPredictedRotation();     // Re-call the prediction that now is "real"
                 
-                var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
-                if(moveDirection != Vector3.zero)
-                    _rigidbody.MovePosition(_rigidbody.position + moveDirection);
+                    var moveDirection = projectedMove * (WalkingSpeed * Time.fixedDeltaTime);
+                    if(moveDirection != Vector3.zero)
+                        _rigidbody.MovePosition(_rigidbody.position + moveDirection);
                 
-                // Update the last movement applied by the user
-                _lastFixedMovementApplied = moveDirection;
-            }else {
-                if(_wasBlocked)
-                    _wasBlocked = false;
+                    // Update the last movement applied by the user
+                    _lastFixedMovementApplied = moveDirection;
+                }
                 else
-                    _wasBlocked = true;
+                {
+                    _wasBlocked = false;
+                }
+                
+            }else {
+                _wasBlocked = true;
             }
             
         }

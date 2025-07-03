@@ -6,17 +6,28 @@ namespace Player
 {
     public class PlayerVFX : MonoBehaviour
     {
+        [Header("Materials Renderer")]
         private Material _currentFireMaterial;
         private float _lastHealthValue = 1.0f;
         [SerializeField] private Material damageMaterial;
         [SerializeField] private Material baseMaterial;
         [SerializeField] private Renderer materialRenderer;
         [SerializeField] private int[] materialSlots;
-        
-        private bool canDamage = false;
+        [Header("Trail Renderer")]
+        [SerializeField] private float minTrailVelocity;
+        [SerializeField] private float maxTrailVelocity;
+        [SerializeField] private float minTrailTime;
+        [SerializeField] private float maxTrailTime;
+        [SerializeField] float fadeDuration = 0.5f;
+        private TrailRenderer _trailRenderer;
+
+        private bool canDamage = true;
         void Start()
         {
             Player.Instance.PawnAttributes.OnHealthChange += SetGlowColor;
+            _trailRenderer = GetComponent<TrailRenderer>();
+            _trailRenderer.time = 0.0f;
+            Debug.Log("Setting Trail Renderer");
         }
 
         public void TakeDamage()
@@ -29,42 +40,49 @@ namespace Player
 
         private IEnumerator TakeDamageCoroutine(int materialSlot)
         {
-            while (!canDamage)
+            // Wait until we're allowed to damage
+            yield return new WaitUntil(() => canDamage);
+
+            var mats = materialRenderer.materials;
+            if (materialSlot < 0 || materialSlot >= mats.Length)
             {
+                Debug.LogError($"Invalid material slot {materialSlot}");
+                yield break;
+            }
+
+            var mat = mats[materialSlot];
+            mat.EnableKeyword("_EMISSION");
+            var originalColor = mat.GetColor("_EmissionColor");
+            var targetColor  = damageMaterial.GetColor("_EmissionColor");
+
+            float duration = 0.2f;
+            float elapsed  = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / duration;
+                mat.SetColor("_EmissionColor", Color.Lerp(originalColor, targetColor, t));
                 yield return null;
             }
-            float lerpSpeed = 5f;
-            Material[] materials = materialRenderer.materials;
-            Material original = materials[materialSlot];
-            Material target = damageMaterial;
-    
-            materials[materialSlot] = new Material(original);
-            materialRenderer.materials = materials;
-            float t = 0f;
-            while (t < 1f)
+            elapsed = 0f;
+            while (elapsed < duration)
             {
-                t += Time.deltaTime * lerpSpeed;
-                materials[materialSlot].Lerp(original, target, t);
-                materialRenderer.materials = materials;       
+                elapsed += Time.deltaTime;
+                float t = elapsed / duration;
+                mat.SetColor("_EmissionColor", Color.Lerp(targetColor, originalColor, t));
                 yield return null;
             }
 
-            t = 0f;
-            while (t < 1f)
-            {
-                t += Time.deltaTime * lerpSpeed;
-                materials[materialSlot].Lerp(target, original, t);
-                materialRenderer.materials = materials;
-                yield return null;
-            }
-            materials[materialSlot] = new Material(original);
-            materialRenderer.materials = materials;
+            mat.SetColor("_EmissionColor", originalColor);
+            
         }
 
         // Make glow color change with the health percentage. If the health is under a given threshold
         // the glow lerps to its "damaged" version
         public void SetGlowColor(float healthPercentage)
         {
+            
             canDamage = false;
             
             if (healthPercentage > _lastHealthValue)
@@ -77,6 +95,7 @@ namespace Player
             }
             _lastHealthValue = healthPercentage;
             canDamage = true;
+            
         }
 
         private void LerpGlowRecovery(float healthPercentage)
@@ -116,6 +135,29 @@ namespace Player
 
                 materialRenderer.materials = materials;
                     
+            }
+        }
+
+        public void ResetTrails()
+        {
+            _trailRenderer.emitting = false;
+        }
+        public void UpdateTrailRenders(float velocity)
+        {
+            if (velocity > minTrailVelocity && velocity <= maxTrailVelocity)
+            {
+                _trailRenderer.emitting = true;
+                float t = Mathf.InverseLerp(minTrailVelocity, maxTrailVelocity, velocity);
+                _trailRenderer.time = Mathf.Lerp(minTrailTime, maxTrailTime, t);
+            }else if (velocity > maxTrailVelocity)
+            {
+                _trailRenderer.emitting = false;
+                _trailRenderer.time = 0.0f;
+            }
+            else
+            {
+                float fadeSpeed = maxTrailTime / fadeDuration;
+                _trailRenderer.time = Mathf.MoveTowards(_trailRenderer.time, 0.0f, fadeSpeed*Time.fixedDeltaTime);
             }
         }
     }

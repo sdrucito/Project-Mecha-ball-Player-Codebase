@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Player.PlayerController;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Player
 {
@@ -35,8 +36,10 @@ namespace Player
     public class PhysicsModule : MonoBehaviour, IFixedUpdateObserver
     {
         #region Serialized Parameters
-        [Header("Ground Transition Settings")]
-        [SerializeField] private float minCorrelationForTransition = 0.9f;
+        [Header("Ground Settings")]
+        [SerializeField] private float minCorrelationMove = 0.9f;
+        [SerializeField] private float ballHalfHeight = 0.5f;
+        [SerializeField] private float repositionYOffset = 0.2f;
         #endregion
 
         #region State Fields
@@ -63,7 +66,8 @@ namespace Player
         /// Indicates whether the module is currently rotating to align with terrain.
         /// </summary>
         public bool IsRotating => _isRotating;
-        
+
+        [SerializeField] private float maxAngularSpeed = 10f;
         /*
         /// <summary>
         /// Indicates whether the module has to reposition the player to the last saved position/rotation
@@ -95,7 +99,7 @@ namespace Player
             var currentPosition = Player.Instance.Rigidbody.position;
             _velocity = (currentPosition - _lastPosition) / Time.fixedDeltaTime;
             _lastPosition = currentPosition;
-            //Debug.Log("[PhysicsModule] Current velocity: "+_velocity.magnitude);
+            LimitAngularVelocity();
         }
 
         #endregion
@@ -120,6 +124,7 @@ namespace Player
                 UpdateBallGrounded();
             }
         }
+        
 
         /// <summary>
         /// Determines if movement is allowed given current grounded state and surface correlation.
@@ -130,8 +135,11 @@ namespace Player
             {
                 return false;
             }
+
             if (movement.magnitude <= 0f)
+            {
                 return true;
+            }
 
             var hits = Player.Instance.RaycastManager.GetHitList();
             float sumCorrelation = 0f;
@@ -141,15 +149,20 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
-            if(sumCorrelation == 0f)
-                Debug.Log("Computed correlation: " + sumCorrelation);
-            return sumCorrelation > minCorrelationForTransition;
+
+            if (sumCorrelation > minCorrelationMove)
+            {
+                Debug.DrawLine(transform.position, transform.position + movement*10f, Color.green);
+            }
+            return sumCorrelation > minCorrelationMove;
         }
 
         public void InjectGroundLayer()
         {
             _collisionLayers.Add(_groundLayer);
         }
+        
+        
 
         /// <summary>
         /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
@@ -163,6 +176,18 @@ namespace Player
         {
             return _velocity;
         }
+
+        void LimitAngularVelocity()
+        {
+            var rb = Player.Instance.Rigidbody;
+
+            float angularSpeed = rb.angularVelocity.magnitude;
+            if (angularSpeed > maxAngularSpeed)
+            {
+                rb.angularVelocity = rb.angularVelocity.normalized * maxAngularSpeed;
+            }
+        }
+        
         #endregion
 
         #region Ground Normal Computation
@@ -203,17 +228,27 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            Player player = Player.Instance;
-            if (player.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
+            if (CanUpdateBallGround())
             {
                 if (hitData.Layer == _groundLayer)
+                {
                     _groundNormal = GetCollisionNormal(hitData);
+                    Debug.Log("Hitting ground: " + hitData.CollisionInfo.gameObject.name);
+                }
                 _collisionLayers.Add(hitData.Layer);
                 UpdateBallGrounded();
                 
                 // Pass the velocity to modulate the volume of the hit ground
                 Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
             }
+        }
+
+        private static bool CanUpdateBallGround()
+        {
+            Player player = Player.Instance;
+            return (player.ControlModuleManager.GetActiveModuleName() == "Ball" &&
+                    !player.ControlModuleManager.IsSwitching) || (player.ControlModuleManager.GetActiveModuleName() == "Walk" &&
+                                                                  player.ControlModuleManager.IsSwitching);
         }
 
         /// <summary>
@@ -232,7 +267,8 @@ namespace Player
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            Debug.Log("Dequeueing collision layer: " + hitData.Layer);
+            if(hitData.Layer == _groundLayer)
+                Debug.Log("Exiting ground: " + hitData.CollisionInfo.gameObject.name);
             _collisionLayers.Remove(hitData.Layer);
         }
         #endregion
@@ -244,7 +280,6 @@ namespace Player
         public bool IsGrounded()
         {
             UpdateGrounded();
-            
             return _isGrounded;
         }
 
@@ -271,7 +306,7 @@ namespace Player
         {
             hitData.CollisionInfo.GetContacts(_contactPoints);
             GetCollisionPoint(out ContactPoint? cp);
-            return cp?.normal ?? Vector3.zero;
+            return cp?.normal ?? Vector3.up;
         }
 
         /// <summary>
@@ -337,7 +372,7 @@ namespace Player
         public void RepositionOnFall()
         {
             Reposition(_savedPosition, _savedRotation);
-            Player.Instance.TakeDamage(20.0f);
+            Player.Instance.TakeDamage(10.0f);
         }
 
         public void Reposition(Vector3 position, Quaternion rotation)
@@ -355,6 +390,7 @@ namespace Player
         public void SaveReposition()
         {
             _savedPosition = transform.position;
+            _savedPosition.y += repositionYOffset;
             _savedRotation = transform.rotation;
         }
         
