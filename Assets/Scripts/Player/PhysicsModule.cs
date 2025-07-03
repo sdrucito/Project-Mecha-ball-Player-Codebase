@@ -102,6 +102,8 @@ namespace Player
             CastGroundRollback();
             
             LimitAngularVelocity();
+            
+            
         }
 
         #endregion
@@ -248,7 +250,10 @@ namespace Player
             if (CanUpdateBallGround())
             {
                 if (hitData.Layer == _groundLayer)
+                {
                     _groundNormal = GetCollisionNormal(hitData);
+                    Debug.Log("Hitting ground: " + hitData.CollisionInfo.gameObject.name);
+                }
                 _collisionLayers.Add(hitData.Layer);
                 UpdateBallGrounded();
                 
@@ -281,7 +286,8 @@ namespace Player
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            Debug.Log("Dequeueing collision layer: " + hitData.Layer);
+            if(hitData.Layer == _groundLayer)
+                Debug.Log("Exiting ground: " + hitData.CollisionInfo.gameObject.name);
             _collisionLayers.Remove(hitData.Layer);
         }
         #endregion
@@ -293,7 +299,6 @@ namespace Player
         public bool IsGrounded()
         {
             UpdateGrounded();
-            
             return _isGrounded;
         }
 

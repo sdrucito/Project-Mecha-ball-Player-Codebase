@@ -203,11 +203,11 @@ namespace Player.ControlModules
             var projectedMove = ProjectedMove(_inputVector,groundNormal);
             if(Player.Instance.IsGrounded())
                 ApplyTouchGrounded();
-            ExecuteRotation(projectedMove, groundNormal);
             if (Player.Instance.CanMove(projectedMove))
             {
                 if (!_wasBlocked)
                 {
+                    ExecuteRotation(projectedMove, groundNormal);
                     Player.Instance.RaycastManager.MovementDelta = Vector3.zero;
                     Player.Instance.RaycastManager.RotationDelta = Quaternion.identity;
                     PlayerKneeWalkAnimator.ExecuteGrounded(); 
