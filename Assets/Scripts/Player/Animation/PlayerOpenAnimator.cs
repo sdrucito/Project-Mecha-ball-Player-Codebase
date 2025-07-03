@@ -66,8 +66,8 @@ namespace Player.Animation
             Player player = Player.Instance;
             _integralError = 0f;
 
-            float maxPTerm = 5f;
-            float maxDTerm = 5f;
+            float maxPTerm = 8f;
+            float maxDTerm = 8f;
             float maxTorque = 15f;
             float maxAngularVelocity = 8f;
 

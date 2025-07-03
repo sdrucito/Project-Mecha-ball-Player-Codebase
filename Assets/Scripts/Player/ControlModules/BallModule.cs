@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 
 namespace Player.ControlModules
 {
-    public class BallModule : ControlModule, IFixedUpdateObserver, IUpdateObserver
+    public class BallModule : ControlModule, IUpdateObserver
     {
     
         [SerializeField] private float jumpImpulseMagnitude;
@@ -32,13 +32,10 @@ namespace Player.ControlModules
         private float _runningSprintCooldown = 0.0f;
         
         public int UpdatePriority { get; set; }
-        public int FixedUpdatePriority { get; set; }
-
         
         private void Awake()
         {
             name = "Ball";
-            FixedUpdatePriority = 0;
             UpdatePriority = 0;
         }
 
@@ -54,18 +51,8 @@ namespace Player.ControlModules
             JumpCrosshairLogic();        
         }
 
-        public void ObservedFixedUpdate()
-        {
-            if (_physicsModule == null)
-            {
-                _physicsModule = Player.Instance.PhysicsModule;
-            }
-            _physicsModule.CastGroundRollback();
-        }
-
         public void OnEnable()
         {
-            FixedUpdateManager.Instance.Register(this);
             UpdateManager.Instance.Register(this);
             PlayerInputManager.Instance.OnJumpInput += Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput += Input_SprintImpulse;
@@ -83,10 +70,11 @@ namespace Player.ControlModules
 
         public void OnDisable()
         {
-            FixedUpdateManager.Instance?.Unregister(this);
             UpdateManager.Instance?.Unregister(this);
+            if (PlayerInputManager.Instance == null) return;
             PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
+
         }
 
         private void Input_JumpImpulse()

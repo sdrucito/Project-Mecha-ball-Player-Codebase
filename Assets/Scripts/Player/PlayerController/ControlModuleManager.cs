@@ -72,6 +72,7 @@ namespace Player.PlayerController
                 IsSwitching = true;
                 _modules[_actualModule].OnActivated?.Invoke();
                 HapticsManager.Instance.Play("SwitchMode");
+                AudioManager.Instance.PlayOneShot(FMODEvents.Instance.robotSwitchInput.eventReference, transform.position);
             }
         }
 

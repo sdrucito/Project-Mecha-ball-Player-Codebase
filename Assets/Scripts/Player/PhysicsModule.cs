@@ -99,11 +99,7 @@ namespace Player
             var currentPosition = Player.Instance.Rigidbody.position;
             _velocity = (currentPosition - _lastPosition) / Time.fixedDeltaTime;
             _lastPosition = currentPosition;
-            CastGroundRollback();
-            
             LimitAngularVelocity();
-            
-            
         }
 
         #endregion
@@ -128,22 +124,7 @@ namespace Player
                 UpdateBallGrounded();
             }
         }
-
-        public void CastGroundRollback()
-        {
-            Player player = Player.Instance;
-
-            if (!IsGrounded())
-            {
-                Vector3 origin = player.Rigidbody.position;
-                var ray = new Ray(origin, Vector3.down);
-                if (Physics.Raycast(ray, out var hit, ballHalfHeight, _groundLayer))
-                {
-                    // Even if player is not grounded, it is grounded, so I inject a ground layer
-                    InjectGroundLayer();
-                }
-            }
-        }
+        
 
         /// <summary>
         /// Determines if movement is allowed given current grounded state and surface correlation.
