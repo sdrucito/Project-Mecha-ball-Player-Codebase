@@ -371,6 +371,9 @@ namespace Player
 
         public void RepositionOnFall()
         {
+            _savedPosition = Player.Instance.ControlModuleManager.GetActiveModuleName() == "Walk"
+                ? _savedPosition += GetGroundNormal() * 5.0f
+                : _savedPosition;
             Reposition(_savedPosition, _savedRotation);
             Player.Instance.TakeDamage(10.0f);
         }
