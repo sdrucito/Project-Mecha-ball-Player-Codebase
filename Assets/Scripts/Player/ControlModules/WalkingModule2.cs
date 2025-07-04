@@ -78,7 +78,7 @@ namespace Player.ControlModules
             if (PlayerInputManager.Instance != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
-                PlayerInputManager.Instance.OnLookInput -= HandleDirection;
+                //PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
                 PlayerKneeWalkAnimator.OnOpenFinished -= OnOpenFinished;
 
@@ -90,7 +90,7 @@ namespace Player.ControlModules
         private void OnOpenFinished()
         {
             PlayerInputManager.Instance.OnMoveInput += HandleMovement;
-            PlayerInputManager.Instance.OnLookInput += HandleDirection;
+            //PlayerInputManager.Instance.OnLookInput += HandleDirection;
             PlayerInputManager.Instance.SetActionEnabled("ChangeMode", true);
             Player.Instance.PlayerVFX.ResetTrails();
         }
