@@ -76,7 +76,6 @@ namespace Player
             }
             
             CustomDeadZone.Instance.ResetCameraPivotPosition();
-            Debug.Log("Setting input enabled");
             PlayerInputManager.Instance.SetInputEnabled(true);
 
             
@@ -86,7 +85,6 @@ namespace Player
         {
             // Block player input during spawn
             PlayerInputManager.Instance.SetInputEnabled(false);
-            Debug.Log("Setting input disabled");
 
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);

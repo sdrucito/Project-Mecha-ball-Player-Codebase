@@ -75,7 +75,7 @@ namespace Player.ControlModules
         private void OnDisable()
         {
             FixedUpdateManager.Instance?.Unregister(this);
-            if (PlayerInputManager.Instance != null)
+            if (PlayerInputManager.TryGetInstance() != null)
             {
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;
                 //PlayerInputManager.Instance.OnLookInput -= HandleDirection;
@@ -86,7 +86,7 @@ namespace Player.ControlModules
 
         private void OnDestroy()
         {
-            if (PlayerInputManager.Instance != null)
+            if (PlayerInputManager.TryGetInstance() != null)
                 PlayerInputManager.Instance.OnMoveInput -= HandleMovement;        
         }
 

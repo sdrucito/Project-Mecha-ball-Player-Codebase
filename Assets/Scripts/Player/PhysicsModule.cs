@@ -228,6 +228,7 @@ namespace Player
             {
                 if (hitData.Layer == _groundLayer)
                 {
+                    Debug.Log("Adding new ground");
                     _groundNormal = GetCollisionNormal(hitData);
                 }
                 _collisionLayers.Add(hitData.Layer);

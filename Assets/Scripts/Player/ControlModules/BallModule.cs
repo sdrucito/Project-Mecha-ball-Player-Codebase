@@ -72,7 +72,7 @@ namespace Player.ControlModules
         public void OnDisable()
         {
             UpdateManager.Instance?.Unregister(this);
-            if (PlayerInputManager.Instance == null) return;
+            if (PlayerInputManager.TryGetInstance() == null) return;
             PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
 
@@ -80,7 +80,7 @@ namespace Player.ControlModules
 
         public void OnDestroy()
         {
-            if (PlayerInputManager.Instance == null) return;
+            if (PlayerInputManager.TryGetInstance() == null) return;
             PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
             PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
         }

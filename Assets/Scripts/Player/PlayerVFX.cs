@@ -27,7 +27,6 @@ namespace Player
             Player.Instance.PawnAttributes.OnHealthChange += SetGlowColor;
             _trailRenderer = GetComponent<TrailRenderer>();
             _trailRenderer.time = 0.0f;
-            Debug.Log("Setting Trail Renderer");
         }
 
         public void TakeDamage()

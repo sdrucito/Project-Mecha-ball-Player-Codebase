@@ -125,7 +125,7 @@ namespace Player.PlayerController
 
         private void OnDestroy()
         {
-            if (PlayerInputManager.Instance != null)
+            if (PlayerInputManager.TryGetInstance() != null)
             {
                 PlayerInputManager.Instance.OnModeChangeInput -= SwitchMode;
             }
