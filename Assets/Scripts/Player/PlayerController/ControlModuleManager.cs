@@ -122,6 +122,13 @@ namespace Player.PlayerController
             foreach (ControlModule module in _modules)
                 module.enabled = false;
         }
-        
+
+        private void OnDestroy()
+        {
+            if (PlayerInputManager.Instance != null)
+            {
+                PlayerInputManager.Instance.OnModeChangeInput -= SwitchMode;
+            }
+        }
     }
 }

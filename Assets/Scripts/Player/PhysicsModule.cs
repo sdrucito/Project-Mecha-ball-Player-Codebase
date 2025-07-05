@@ -149,11 +149,7 @@ namespace Player
                 if (corr > 0f)
                     sumCorrelation += corr;
             }
-
-            if (sumCorrelation > minCorrelationMove)
-            {
-                Debug.DrawLine(transform.position, transform.position + movement*10f, Color.green);
-            }
+            
             return sumCorrelation > minCorrelationMove;
         }
 
@@ -233,7 +229,6 @@ namespace Player
                 if (hitData.Layer == _groundLayer)
                 {
                     _groundNormal = GetCollisionNormal(hitData);
-                    Debug.Log("Hitting ground: " + hitData.CollisionInfo.gameObject.name);
                 }
                 _collisionLayers.Add(hitData.Layer);
                 UpdateBallGrounded();
@@ -267,8 +262,6 @@ namespace Player
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            if(hitData.Layer == _groundLayer)
-                Debug.Log("Exiting ground: " + hitData.CollisionInfo.gameObject.name);
             _collisionLayers.Remove(hitData.Layer);
         }
         #endregion
@@ -382,6 +375,7 @@ namespace Player
         {
             Rigidbody rb = Player.Instance.Rigidbody;
             rb.isKinematic = true;
+            rb.position = position;
             rb.position = position;
             rb.rotation = rotation;
             rb.isKinematic = false;

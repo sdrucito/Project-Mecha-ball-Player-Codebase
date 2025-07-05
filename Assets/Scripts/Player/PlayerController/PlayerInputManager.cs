@@ -146,6 +146,17 @@ namespace Player.PlayerController
                 _playerMap.Enable();
             }
         }
+        
+        private void OnDestroy()
+        {
+            OnMoveInput = null;
+            OnJumpInput = null;
+            OnModeChangeInput = null;
+            OnSprintImpulseInput = null;
+            PreviousCamera = null;
+            NextCamera = null;
+            Pause = null;
+        }
         #endregion
 
         #region Public Methods
@@ -203,5 +214,7 @@ namespace Player.PlayerController
             _inputRotationAngle = angle;
         }
         #endregion
+
+        
     }
 }

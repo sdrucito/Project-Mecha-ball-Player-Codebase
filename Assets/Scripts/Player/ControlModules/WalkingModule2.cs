@@ -81,9 +81,15 @@ namespace Player.ControlModules
                 //PlayerInputManager.Instance.OnLookInput -= HandleDirection;
                 PlayerKneeWalkAnimator.enabled = false;
                 PlayerKneeWalkAnimator.OnOpenFinished -= OnOpenFinished;
-
             }
         }
+
+        private void OnDestroy()
+        {
+            if (PlayerInputManager.Instance != null)
+                PlayerInputManager.Instance.OnMoveInput -= HandleMovement;        
+        }
+
         #endregion
         
         #region Input Handlers

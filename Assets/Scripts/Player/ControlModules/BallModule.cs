@@ -78,6 +78,13 @@ namespace Player.ControlModules
 
         }
 
+        public void OnDestroy()
+        {
+            if (PlayerInputManager.Instance == null) return;
+            PlayerInputManager.Instance.OnJumpInput -= Input_JumpImpulse;
+            PlayerInputManager.Instance.OnSprintImpulseInput -= Input_SprintImpulse;
+        }
+
         private void Input_JumpImpulse()
         {
             Player player = Player.Instance;
