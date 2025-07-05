@@ -86,6 +86,10 @@ namespace Player.PlayerController
             if (_currentMoveInput.magnitude < DRIFT_THRESHOLD)
                 _currentMoveInput = Vector2.zero;
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
+            if (Time.timeScale == 0)
+            {
+                inputCameraRelative = Vector2.zero;
+            }
             OnMoveInput?.Invoke(inputCameraRelative);
             if (BallImpulseOnMove)
             {

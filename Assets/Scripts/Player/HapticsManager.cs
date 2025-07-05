@@ -63,7 +63,7 @@ public class HapticsManager : Singleton<HapticsManager>
         if (_gamepad != null)
         {
             _gamepad.SetMotorSpeeds(preset.LowFrequency, preset.HighFrequency);
-            yield return new WaitForSeconds(preset.Duration);
+            yield return new WaitForSecondsRealtime(preset.Duration);
             _gamepad.SetMotorSpeeds(0f, 0f);
         }
 
