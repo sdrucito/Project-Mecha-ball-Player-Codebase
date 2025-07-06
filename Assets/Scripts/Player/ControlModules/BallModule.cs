@@ -63,7 +63,6 @@ namespace Player.ControlModules
             _rigidbody.angularDamping = OverrideAngularDrag;
             _rigidbody.WakeUp();
             Player.Instance.PhysicsModule.InjectGroundLayer();
-            
             if (lineRenderer == null)
                 lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
