@@ -165,10 +165,10 @@ namespace Player.ControlModules
             while (_runningSprintCooldown - sprintCooldownTime < Single.Epsilon)
             {
                 yield return null;
-                GameManager.Instance.UIManager.HudUI.SetImpulseCharge(_runningSprintCooldown/sprintCooldownTime);
+                if (GameManager.Instance.UIManager) GameManager.Instance.UIManager.HudUI.SetImpulseCharge(_runningSprintCooldown/sprintCooldownTime);
                 _runningSprintCooldown += Time.deltaTime;
             }
-            GameManager.Instance.UIManager.HudUI.SetImpulseCharge(1.0f);
+            if (GameManager.Instance.UIManager) GameManager.Instance.UIManager.HudUI.SetImpulseCharge(1.0f);
 
             _runningSprintCooldown = 0.0f;
             _canSprint = true;
