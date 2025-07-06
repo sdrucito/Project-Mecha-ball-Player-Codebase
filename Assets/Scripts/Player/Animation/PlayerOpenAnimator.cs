@@ -133,6 +133,11 @@ namespace Player.Animation
             }
             else
             {
+                // If player open was stop for a repositioning proble
+                if (player.IsGrounded())
+                {
+                    player.PhysicsModule.RemoveGroundLayer();
+                }
                 Player.Instance.PlayerSound.OpenDenial();
                 Player.Instance.ControlModuleManager.RollbackSwitch();
             }

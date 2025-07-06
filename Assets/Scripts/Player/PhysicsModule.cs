@@ -158,6 +158,12 @@ namespace Player
             _collisionLayers.Add(_groundLayer);
         }
         
+        public void RemoveGroundLayer()
+        {
+            _collisionLayers.Remove(_groundLayer);
+        }
+
+        
         
 
         /// <summary>
