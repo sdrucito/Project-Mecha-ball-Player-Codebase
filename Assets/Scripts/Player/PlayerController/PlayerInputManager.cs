@@ -18,6 +18,8 @@ namespace Player.PlayerController
         private InputAction _previousCameraAction;
         private InputAction _nextCameraAction;
         private InputAction _pauseAction;
+        private InputAction _zoomInAction;
+        private InputAction _zoomOutAction;
 
         public bool IsCameraTransition { get; set; } = false;
         private bool _isInputGloballyDisabled = false;
@@ -36,11 +38,16 @@ namespace Player.PlayerController
         public event Action NextCamera;
         
         public event Action Pause;
-    
+        public event Action OnZoomIn;
+        public event Action OnZoomOut;
+        public event Action OnZoomReset;
+        
         private Vector2 _currentMoveInput = Vector2.zero;
         private Vector2 _currentDirectionInput = Vector2.zero;
         private bool _isSprintImpulse = false;
         private float _inputRotationAngle = 0f;
+        private bool isZoomingIn = false;
+        private bool isZoomingOut = false;
         
         #region Private Methods
         private void Awake()
@@ -62,6 +69,9 @@ namespace Player.PlayerController
             _previousCameraAction = _playerInput.actions.FindAction("Previous Camera");
             _nextCameraAction = _playerInput.actions.FindAction("Next Camera");
             _pauseAction = _playerInput.actions.FindAction("Pause");
+            _zoomInAction =  _playerInput.actions.FindAction("Zoom In");
+            _zoomOutAction =  _playerInput.actions.FindAction("Zoom Out");
+
             
             _moveAction.performed += ctx => _currentMoveInput = ctx.ReadValue<Vector2>();
             _moveAction.canceled += ctx => _currentMoveInput = Vector2.zero;
@@ -78,6 +88,10 @@ namespace Player.PlayerController
             _previousCameraAction.started += ctx => PreviousCamera?.Invoke();
             _nextCameraAction.started += ctx => NextCamera?.Invoke();
             _pauseAction.started += ctx => Pause?.Invoke();
+            _zoomInAction.started += ctx => isZoomingIn = true;
+            _zoomOutAction.started += ctx => isZoomingOut = true;
+            _zoomInAction.canceled += ctx => isZoomingIn = false;
+            _zoomOutAction.canceled += ctx => isZoomingOut = false;
         }
 
         private void FixedUpdate()
@@ -105,6 +119,19 @@ namespace Player.PlayerController
 
             var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle+ISOMETRIC_OFFSET);
             //OnLookInput?.Invoke(rotationCameraRelative);
+                
+
+            if (_zoomInAction.IsPressed() && _zoomOutAction.IsPressed())
+            {
+                OnZoomReset?.Invoke();
+            }
+            else
+            {
+                if (_zoomInAction.IsPressed())
+                    OnZoomIn?.Invoke();
+                if (_zoomOutAction.IsPressed())
+                    OnZoomOut?.Invoke();
+            }
 
             UpdateCursorState();
             //Debug.Log("INPUT ENABLED: " + _playerInput.enabled);
@@ -160,6 +187,8 @@ namespace Player.PlayerController
             PreviousCamera = null;
             NextCamera = null;
             Pause = null;
+            OnZoomIn = null;
+            OnZoomOut = null;
         }
         #endregion
 

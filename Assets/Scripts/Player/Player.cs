@@ -170,6 +170,8 @@ namespace Player
             else
             {
                 PlayerState = PlayerState.Dead;
+                HapticsManager.Instance.Play("GameOver");
+
             }
         }
 
