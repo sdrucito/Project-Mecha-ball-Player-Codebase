@@ -8,6 +8,16 @@ using UnityEngine.Serialization;
 namespace Player
 {
     /// <summary>
+    /// Carries details for the last player position
+    /// </summary>
+    public struct PlayerRepositionInfo
+    {
+        public Vector3 Position;
+        public Quaternion Rotation;
+        public Vector3 Normal;
+    }
+
+    /// <summary>
     /// Carries collision details including Unity Collision, layer, and tag.
     /// </summary>
     public struct CollisionData
@@ -39,7 +49,7 @@ namespace Player
         [Header("Ground Settings")]
         [SerializeField] private float minCorrelationMove = 0.9f;
         [SerializeField] private float ballHalfHeight = 0.5f;
-        [SerializeField] private float repositionYOffset = 0.2f;
+        [SerializeField] private float repositionYOffset = 0.4f;
         #endregion
 
         #region State Fields
@@ -49,8 +59,7 @@ namespace Player
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
         private Vector2 _whitenScale = Vector2.one;
-        private Vector3 _savedPosition = Vector3.zero;
-        private Quaternion _savedRotation = Quaternion.identity;
+        private PlayerRepositionInfo _playerRepositionInfo;
         private Vector3 _lastPosition;
         private Vector3 _velocity;
         #endregion
@@ -143,14 +152,18 @@ namespace Player
 
             var hits = Player.Instance.RaycastManager.GetHitList();
             float sumCorrelation = 0f;
+            int corrCounter = 0;
             foreach (var hit in hits)
             {
                 float corr = GetMovementCorrelation(hit.point, movement);
                 if (corr > 0f)
+                {
                     sumCorrelation += corr;
+                    corrCounter++;
+                }
             }
             
-            return sumCorrelation > minCorrelationMove;
+            return sumCorrelation > minCorrelationMove && corrCounter >= 2;
         }
 
         public void InjectGroundLayer()
@@ -371,10 +384,20 @@ namespace Player
 
         public void RepositionOnFall()
         {
-            _savedPosition = Player.Instance.ControlModuleManager.GetActiveModuleName() == "Walk"
-                ? _savedPosition += GetGroundNormal() * 5.0f
-                : _savedPosition;
-            Reposition(_savedPosition, _savedRotation);
+            Player player = Player.Instance;
+            PlayerRepositionInfo playerRepositionInfo = _playerRepositionInfo;
+            playerRepositionInfo.Position = player.ControlModuleManager.GetActiveModuleName() == "Walk"
+                ? playerRepositionInfo.Position += _playerRepositionInfo.Normal * 2.0f
+                : playerRepositionInfo.Position;
+            if (player.RaycastManager.CanRepositionAfterFall(playerRepositionInfo, ballHalfHeight))
+            {
+                Reposition(playerRepositionInfo.Position, playerRepositionInfo.Rotation);
+            }
+            else
+            {
+                // Reposition player to the last spawn position
+                Reposition(player.CurrentCheckpoint.position, player.CurrentCheckpoint.rotation);
+            }
             Player.Instance.TakeDamage(10.0f);
         }
 
@@ -393,11 +416,13 @@ namespace Player
 
         public void SaveReposition()
         {
-            _savedPosition = transform.position;
-            _savedPosition.y += repositionYOffset;
-            _savedRotation = transform.rotation;
+            _playerRepositionInfo.Position = transform.position;
+            _playerRepositionInfo.Position.y += repositionYOffset;
+            _playerRepositionInfo.Rotation = transform.rotation;
+            _playerRepositionInfo.Normal = _groundNormal;
         }
-        
+
+   
         #endregion
 
 

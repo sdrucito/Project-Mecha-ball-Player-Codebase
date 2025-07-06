@@ -14,7 +14,6 @@ namespace Player
         Dead
     }
     
-    
     [RequireComponent(typeof(Rigidbody),typeof(PawnAttributes))]
     public class Player : Singleton<Player>, IDamageable
     {
@@ -23,7 +22,6 @@ namespace Player
         
         private PhysicsModule _physicsModule;
         private PlayerKneeWalkAnimator _playerKneeWalkAnimator;
-
         public PawnAttributes PawnAttributes { get; private set; }
 
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
@@ -36,7 +34,7 @@ namespace Player
         [field: SerializeField] public PlayerAnimator PlayerAnimator { get; private set; }
         [field: SerializeField] public PlayerVFX PlayerVFX { get; private set; }
 
-        
+        public Transform CurrentCheckpoint { get; private set; }
         public PlayerState PlayerState { get; private set; }
         protected override void Awake()
         {
@@ -88,9 +86,16 @@ namespace Player
 
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
+            PhysicsModule.SaveReposition();
+            CurrentCheckpoint = newPosition;
             //PlayerAnimator.Initialize();
             // Here the player should play something like spawn animations, sounds ecc.
             StartCoroutine(InitializePlayer());
+        }
+
+        public void SetCheckpoint(Transform newPosition)
+        {
+            CurrentCheckpoint = newPosition;
         }
         
         private void OnCollisionEnter(Collision other)

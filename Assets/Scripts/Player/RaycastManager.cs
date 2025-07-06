@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Player;
 using Player.Animation;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -141,7 +142,25 @@ public class RaycastManager : MonoBehaviour
             } 
         }
     }
-    
+    public bool CanRepositionAfterFall(PlayerRepositionInfo playerRepositionInfo, float halfHeight)
+    {
+        var ray = new Ray(playerRepositionInfo.Position, -playerRepositionInfo.Normal);
+        Debug.Log("Saved normal for reposition: " + playerRepositionInfo.Normal);
+        Debug.DrawRay(
+            playerRepositionInfo.Position, 
+            -playerRepositionInfo.Normal * halfHeight*8.0f, 
+            Color.red, 
+            10f, 
+            false
+        );
+        if (Physics.Raycast(ray, out var hit, halfHeight*8.0f, LayerMask.GetMask(terrainLayer)))
+        {
+            Debug.Log("Hit point " + hit.point);
+            return true;
+        }
+        Debug.Log("Cannot find ground on reposition");
+        return false;
+    }
     public bool GetLegHit(string legName, out RaycastHit hit)
     {
         if (_hitList.TryGetValue(legName, out hit))
