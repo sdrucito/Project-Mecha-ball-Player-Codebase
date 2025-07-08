@@ -104,7 +104,8 @@ namespace Player
             CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             if (collisionData.Tag == "Ground")
             {
-                if (collisionData.VelocityMagnitude > 0.1)
+                Debug.Log("Impulse Y"+collisionData.CollisionInfo.impulse.y);
+                if (collisionData.CollisionInfo.impulse.y > 3)
                 {
                     CameraShake.Instance.Shake("BallLanding");
                     HapticsManager.Instance.Play("BumpWeak");
