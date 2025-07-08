@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -98,5 +99,10 @@ public class HapticsManager : Singleton<HapticsManager>
     {
         HapticsEnabled = isEnabled;
         if (!isEnabled) Stop();
+    }
+
+    private void OnDestroy()
+    {
+        Stop();
     }
 }
