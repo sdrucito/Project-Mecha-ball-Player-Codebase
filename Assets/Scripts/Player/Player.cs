@@ -56,6 +56,7 @@ namespace Player
             PlayerAnimator.Rebirth();
             
             PawnAttributes.InitAttributes();
+            ResetUI();
             while (!_playerKneeWalkAnimator.IsReady)
             {
                 yield return null;
@@ -77,6 +78,13 @@ namespace Player
             PlayerInputManager.Instance.SetInputEnabled(true);
 
             
+        }
+
+        private void ResetUI()
+        {
+            UIManager uiManager = GameManager.Instance.UIManager;
+            uiManager.HudUI.ResetDamage();
+            uiManager.HudUI.SetImpulseCharge(1.0f);
         }
 
         public void SpawnPlayer(Transform newPosition)
