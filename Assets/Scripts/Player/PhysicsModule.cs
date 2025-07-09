@@ -67,6 +67,7 @@ namespace Player
         #region Contact & Collision Queues
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
         private List<int> _collisionLayers = new List<int>();
+        private List<string> _collisionTags = new List<string>();
         #endregion
         public int FixedUpdatePriority { get; set; }
 
@@ -251,6 +252,7 @@ namespace Player
                     _groundNormal = GetCollisionNormal(hitData);
                 }
                 _collisionLayers.Add(hitData.Layer);
+                _collisionTags.Add(hitData.Tag);
                 UpdateBallGrounded();
                 
                 // Pass the velocity to modulate the volume of the hit ground
@@ -283,6 +285,7 @@ namespace Player
         private void TryDequeueTerrain(CollisionData hitData)
         {
             _collisionLayers.Remove(hitData.Layer);
+            _collisionTags.Remove(hitData.Tag);
         }
         #endregion
 
@@ -294,6 +297,11 @@ namespace Player
         {
             UpdateGrounded();
             return _isGrounded;
+        }
+
+        public bool IsWalkable()
+        {
+            return !_collisionTags.Contains("BallOnly");
         }
 
         /// <summary>
@@ -309,6 +317,8 @@ namespace Player
         {
             _isGrounded = _collisionLayers.Contains(_groundLayer);
         }
+        
+        
         #endregion
 
         #region Collision Normal Helpers
