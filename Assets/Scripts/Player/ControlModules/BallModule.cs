@@ -102,7 +102,7 @@ namespace Player.ControlModules
             {
                 //Debug.Log("Firing sprint impulse"+direction);
                 if (Player.Instance.PhysicsModule.GetVelocity().magnitude < maxSpeed)
-                    player.Rigidbody.AddForce(new Vector3(direction.x,0,direction.y) * sprintImpulseMagnitude, ForceMode.Impulse);
+                    player.Rigidbody.AddForce(new Vector3(direction.normalized.x,0,direction.normalized.y) * sprintImpulseMagnitude, ForceMode.Impulse);
                 StartCoroutine(SprintCoroutine());
                 player.PlayerSound.Sprint();
             }
