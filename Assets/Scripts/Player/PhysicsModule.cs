@@ -426,10 +426,14 @@ namespace Player
 
         public void SaveReposition()
         {
-            _playerRepositionInfo.Position = transform.position;
-            _playerRepositionInfo.Position.y += repositionYOffset;
-            _playerRepositionInfo.Rotation = transform.rotation;
-            _playerRepositionInfo.Normal = _groundNormal;
+            if (!_collisionTags.Contains("BallOnly"))
+            {
+                _playerRepositionInfo.Position = transform.position;
+                _playerRepositionInfo.Position.y += repositionYOffset;
+                _playerRepositionInfo.Rotation = transform.rotation;
+                _playerRepositionInfo.Normal = _groundNormal;
+            }
+           
         }
 
    
