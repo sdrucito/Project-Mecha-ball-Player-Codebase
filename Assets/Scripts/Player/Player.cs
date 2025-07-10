@@ -83,8 +83,11 @@ namespace Player
         private void ResetUI()
         {
             UIManager uiManager = GameManager.Instance.UIManager;
-            uiManager.HudUI.ResetDamage();
-            uiManager.HudUI.SetImpulseCharge(1.0f);
+            if (uiManager != null)
+            {
+                uiManager.HudUI.ResetDamage();
+                uiManager.HudUI.SetImpulseCharge(1.0f);
+            }
         }
 
         public void SpawnPlayer(Transform newPosition)
