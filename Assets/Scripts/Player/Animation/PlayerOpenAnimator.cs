@@ -133,7 +133,7 @@ namespace Player.Animation
             }
             else
             {
-                // If player open was stop for a repositioning proble
+                // If player open was stop for a repositioning problem
                 if (player.IsGrounded())
                 {
                     player.PhysicsModule.RemoveGroundLayer();

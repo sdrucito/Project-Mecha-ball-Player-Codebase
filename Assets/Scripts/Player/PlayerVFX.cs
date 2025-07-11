@@ -16,6 +16,7 @@ namespace Player
         [Header("Trail Renderer")]
         [SerializeField] private float minTrailVelocity;
         [SerializeField] private float maxTrailVelocity;
+        [SerializeField] private float trailCutoffVelocity;
         [SerializeField] private float minTrailTime;
         [SerializeField] private float maxTrailTime;
         [SerializeField] float fadeDuration = 0.5f;
@@ -143,17 +144,16 @@ namespace Player
         }
         public void UpdateTrailRenders(float velocity)
         {
-            if (velocity > minTrailVelocity && velocity <= maxTrailVelocity)
+            if (velocity > trailCutoffVelocity)
+            {
+                _trailRenderer.emitting = false;
+                _trailRenderer.time = 0.0f;
+            } else if (velocity > minTrailVelocity)
             {
                 _trailRenderer.emitting = true;
                 float t = Mathf.InverseLerp(minTrailVelocity, maxTrailVelocity, velocity);
                 _trailRenderer.time = Mathf.Lerp(minTrailTime, maxTrailTime, t);
-            }else if (velocity > maxTrailVelocity)
-            {
-                _trailRenderer.emitting = false;
-                _trailRenderer.time = 0.0f;
-            }
-            else
+            }else 
             {
                 float fadeSpeed = maxTrailTime / fadeDuration;
                 _trailRenderer.time = Mathf.MoveTowards(_trailRenderer.time, 0.0f, fadeSpeed*Time.fixedDeltaTime);
