@@ -146,6 +146,9 @@ namespace Player.Animation
             InitializeLegs();
         }
 
+        /// <summary>
+        /// Sets initial position for all legs
+        /// </summary>
         private void InitializeLegAnimator()
         {
             Vector3 relativePos = frontLeftFoot.position - center.position;
@@ -158,6 +161,9 @@ namespace Player.Animation
             _rearRightFootAnim = new LegAnimator(rearRightFoot, 1f, rearRightFoot.position, rearRightFoot.position, secondOrderDynamicsRrF, relativePos, "rr");
         }
 
+        /// <summary>
+        /// Initializes SecondOrderDynamics component for each leg with the initial position
+        /// </summary>
         private void InitializeSecondOrderDynamics()
         {
             secondOrderDynamicsFlF.Initialize(f, z, r, frontLeftFoot.position);
