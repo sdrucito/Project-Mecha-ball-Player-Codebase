@@ -408,7 +408,7 @@ namespace Player
                 // Reposition player to the last spawn position
                 Reposition(player.CurrentCheckpoint.position, player.CurrentCheckpoint.rotation);
             }
-            Player.Instance.TakeDamage(10.0f);
+            Player.Instance.TakeDamage(8.0f);
         }
 
         public void Reposition(Vector3 position, Quaternion rotation)
