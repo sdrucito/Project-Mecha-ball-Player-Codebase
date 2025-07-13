@@ -79,6 +79,11 @@ namespace Player.Animation
                     success = false;
                     break;
                 }
+                if (!player.PhysicsModule.IsWalkable())
+                {
+                    success = false;
+                    break;
+                }
                 
                 Vector3 currentUp = transform.up;
                 Vector3 groundNormal = player.GetGroundNormal();
