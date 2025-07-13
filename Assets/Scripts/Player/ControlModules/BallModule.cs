@@ -62,10 +62,19 @@ namespace Player.ControlModules
             _rigidbody.linearDamping = OverrideLinearDrag;
             _rigidbody.angularDamping = OverrideAngularDrag;
             _rigidbody.WakeUp();
-            Player.Instance.PhysicsModule.InjectGroundLayer();
+            StartCoroutine(RecomputeCollisions());
+            //Player.Instance.PhysicsModule.InjectGroundLayer();
             if (lineRenderer == null)
                 lineRenderer = GetComponent<LineRenderer>();
             lineRenderer.enabled = false;
+        }
+
+        private IEnumerator RecomputeCollisions()
+        {
+            Collider physicsCollider = Player.Instance.Rigidbody.GetComponent<Collider>();
+            physicsCollider.enabled = false;
+            yield return null;
+            physicsCollider.enabled = true;
         }
 
         public void OnDisable()
