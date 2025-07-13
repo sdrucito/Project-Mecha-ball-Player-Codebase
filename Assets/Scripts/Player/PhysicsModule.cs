@@ -398,7 +398,7 @@ namespace Player
             PlayerRepositionInfo playerRepositionInfo = _playerRepositionInfo;
             playerRepositionInfo.Position = player.ControlModuleManager.GetActiveModuleName() == "Walk"
                 ? playerRepositionInfo.Position += _playerRepositionInfo.Normal * 2.0f
-                : playerRepositionInfo.Position;
+                : playerRepositionInfo.Position += _playerRepositionInfo.Normal * 1.2f;
             if (player.RaycastManager.CanRepositionAfterFall(playerRepositionInfo, ballHalfHeight))
             {
                 Reposition(playerRepositionInfo.Position, playerRepositionInfo.Rotation);
