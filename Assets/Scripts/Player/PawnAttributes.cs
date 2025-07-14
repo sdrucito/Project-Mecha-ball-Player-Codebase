@@ -6,6 +6,7 @@ namespace Player
     public class PawnAttributes : MonoBehaviour
     {
         public Action<float> OnHealthChange;
+        public Action<float, float> OnDamageTaken;
         
         private float _health;
         private float _maxHealth = 100f;
@@ -20,9 +21,13 @@ namespace Player
             if (GameManager.Instance && GameManager.Instance.UIManager)
             {
                 _hud = GameManager.Instance.UIManager.HudUI;
-                if(_hud != null)
+                if (_hud != null)
+                {
                     OnHealthChange += _hud.SetHealth;
+                    OnDamageTaken += _hud.TakeDamage;
+                }
             }
+            ResetMaxHealth();
             IsDead = false;
         }
         
@@ -32,12 +37,14 @@ namespace Player
         }
         public void SetHealth(float health)
         {
-            _health = health > _maxHealth ? _maxHealth : health;
+            _health = Mathf.Clamp(health, 0, _maxHealth);
             OnHealthChange?.Invoke(GetHealthPercentage());
         }
         public float TakeDamage(float damage)
         {
-            SetHealth(_health-damage);
+            float oldHealthPercentage = GetHealthPercentage();
+            _health = Mathf.Clamp(_health - damage, 0, _maxHealth);
+            OnDamageTaken?.Invoke(oldHealthPercentage, GetHealthPercentage());
             if (_health <= 0)
             {
                 Die();

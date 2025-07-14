@@ -60,100 +60,92 @@ namespace Player.Animation
             playerAnimator.Open();
         }
  
-        // PID Controller function
         public IEnumerator AlignToNormalRoutine(Action onAligned)
         {
             Rigidbody rb = Player.Instance.Rigidbody;
             Player player = Player.Instance;
             _integralError = 0f;
+
+            float maxPTerm = 8f;
+            float maxDTerm = 8f;
+            float maxTorque = 15f;
+            float maxAngularVelocity = 8f;
+
             bool success = true;
             while (true)
             {
-                // Verify if the robot is still on the ground, if it changes ground abort the open and start again
                 if (!player.IsGrounded())
                 {
-                    Debug.Log("Not grounded anymore");
                     success = false;
                     break;
                 }
-
+                if (!player.PhysicsModule.IsWalkable())
+                {
+                    success = false;
+                    break;
+                }
                 
                 Vector3 currentUp = transform.up;
                 Vector3 groundNormal = player.GetGroundNormal();
+                
                 if (!IsGroundCoverageSufficient(rb.position, spotDimensions, groundNormal))
                 {
                     success = false;
                     break;
                 }
                 Debug.DrawRay(transform.position, groundNormal*5f, Color.green,3f);
-
                 float angleDeg = Vector3.Angle(currentUp, groundNormal);
-                if (angleDeg <= alignmentTolerance) break;
+                if (angleDeg <= alignmentTolerance)
+                    break;
 
                 Vector3 axis = Vector3.Cross(currentUp, groundNormal).normalized;
                 float angleRad = angleDeg * Mathf.Deg2Rad;
 
+                // Integral clamp
                 _integralError += angleRad * Time.fixedDeltaTime;
                 _integralError = Mathf.Clamp(_integralError, -maxIntegral, maxIntegral);
 
-                Vector3 omegaAlong = Vector3.Dot(rb.angularVelocity, axis) * axis;
+                // Proportional term + clamp
+                float pTermUnclamped = kp * angleRad;
+                float pTerm = Mathf.Clamp(pTermUnclamped, -maxPTerm, maxPTerm);
 
-                Vector3 torque = axis * (kp * angleRad + ki * _integralError) - (kd * omegaAlong);
+                // Derivative term (projected angular velocity) + clamp
+                float rawD = Vector3.Dot(rb.angularVelocity, axis);
+                float dTermUnclamped = kd * rawD;
+                float dTerm = Mathf.Clamp(dTermUnclamped, -maxDTerm, maxDTerm);
 
+                // Build torque and clamp total magnitude
+                Vector3 torque = axis * (pTerm + ki * _integralError - dTerm);
+                torque = Vector3.ClampMagnitude(torque, maxTorque);
+
+                // Optionally cap the rigidbody’s angular velocity each frame
+                if (rb.angularVelocity.sqrMagnitude > maxAngularVelocity * maxAngularVelocity)
+                {
+                    rb.angularVelocity = rb.angularVelocity.normalized * maxAngularVelocity;
+                }
+
+                // Apply forces
                 rb.AddTorque(torque, ForceMode.Force);
-                rb.AddForce(-rb.linearVelocity.normalized*speedDownForce, ForceMode.VelocityChange);
-                
-                
+                rb.AddForce(-rb.linearVelocity.normalized * speedDownForce, ForceMode.VelocityChange);
+
                 yield return new WaitForFixedUpdate();
             }
 
             if (success)
             {
-                // Correctly aligned: can open
                 player.PhysicsModule.ClearGroundData();
                 onAligned?.Invoke();
             }
             else
             {
-                // Rollback module switch
+                // If player open was stop for a repositioning problem
+                if (player.IsGrounded())
+                {
+                    player.PhysicsModule.RemoveGroundLayer();
+                }
+                Player.Instance.PlayerSound.OpenDenial();
                 Player.Instance.ControlModuleManager.RollbackSwitch();
             }
-        }
-
-        IEnumerator AlignFast(Quaternion targetRot, float duration)
-        {
-            Rigidbody rb = Player.Instance.Rigidbody;
-            Player player = Player.Instance;
-            Quaternion start = rb.rotation;
-            float t = 0f;
-            bool success = true;
-
-            while (t < duration)
-            {
-                if (!player.IsGrounded())
-                {
-                    Debug.Log("Not grounded anymore");
-                    success = false;
-                    break;
-                }
-                t += Time.fixedDeltaTime;
-                Quaternion r = Quaternion.Slerp(start, targetRot, t / duration);
-                rb.MoveRotation(r);
-                rb.AddForce(-rb.linearVelocity*speedDownForce, ForceMode.VelocityChange);
-                yield return null;
-            }
-            if(success)
-                _onAligned?.Invoke();
-
-
-        }
-        
-        private bool IsAreaClear(Vector3 center, Vector2 halfExtentsXZ)
-        {
-            Vector3 halfExtents = new Vector3(halfExtentsXZ.x, 0.05f, halfExtentsXZ.y);
-            Vector3 boxCenter = center + Vector3.down * 0.05f;
-            Collider[] hits = Physics.OverlapBox(boxCenter, halfExtents, Quaternion.identity, groundLayerMask);
-            return hits.Length == 0;
         }
         
         private bool IsGroundCoverageSufficient(Vector3 center, Vector2 halfExtentsPlane, Vector3 groundNormal, float requiredCoverage = 0.7f, int samplesPerAxis = 10) {

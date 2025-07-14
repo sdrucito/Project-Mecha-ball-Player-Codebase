@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -17,16 +18,19 @@ namespace Player.PlayerController
         private InputAction _previousCameraAction;
         private InputAction _nextCameraAction;
         private InputAction _pauseAction;
+        private InputAction _zoomInAction;
+        private InputAction _zoomOutAction;
 
         public bool IsCameraTransition { get; set; } = false;
         private bool _isInputGloballyDisabled = false;
         private const float ISOMETRIC_OFFSET = 45;
+        [SerializeField] private const float DRIFT_THRESHOLD = 0.1f;
 
         [SerializeField] private bool BallImpulseOnMove = true;
         [SerializeField] private bool MouseEnabled = false;
         
         public event Action<Vector2> OnMoveInput;
-        public event Action<Vector2> OnLookInput;
+        //public event Action<Vector2> OnLookInput;
         public event Action OnJumpInput;
         public event Action OnModeChangeInput;
         public event Action<Vector2> OnSprintImpulseInput;
@@ -34,11 +38,16 @@ namespace Player.PlayerController
         public event Action NextCamera;
         
         public event Action Pause;
-    
+        public event Action OnZoomIn;
+        public event Action OnZoomOut;
+        public event Action OnZoomReset;
+        
         private Vector2 _currentMoveInput = Vector2.zero;
         private Vector2 _currentDirectionInput = Vector2.zero;
         private bool _isSprintImpulse = false;
         private float _inputRotationAngle = 0f;
+        private bool isZoomingIn = false;
+        private bool isZoomingOut = false;
         
         #region Private Methods
         private void Awake()
@@ -60,6 +69,9 @@ namespace Player.PlayerController
             _previousCameraAction = _playerInput.actions.FindAction("Previous Camera");
             _nextCameraAction = _playerInput.actions.FindAction("Next Camera");
             _pauseAction = _playerInput.actions.FindAction("Pause");
+            _zoomInAction =  _playerInput.actions.FindAction("Zoom In");
+            _zoomOutAction =  _playerInput.actions.FindAction("Zoom Out");
+
             
             _moveAction.performed += ctx => _currentMoveInput = ctx.ReadValue<Vector2>();
             _moveAction.canceled += ctx => _currentMoveInput = Vector2.zero;
@@ -76,13 +88,22 @@ namespace Player.PlayerController
             _previousCameraAction.started += ctx => PreviousCamera?.Invoke();
             _nextCameraAction.started += ctx => NextCamera?.Invoke();
             _pauseAction.started += ctx => Pause?.Invoke();
+            _zoomInAction.started += ctx => isZoomingIn = true;
+            _zoomOutAction.started += ctx => isZoomingOut = true;
+            _zoomInAction.canceled += ctx => isZoomingIn = false;
+            _zoomOutAction.canceled += ctx => isZoomingOut = false;
         }
 
         private void FixedUpdate()
         {
-            CameraTransitionCheck();
-            
+            //CameraTransitionCheck();
+            if (_currentMoveInput.magnitude < DRIFT_THRESHOLD)
+                _currentMoveInput = Vector2.zero;
             var inputCameraRelative = RotateInput(_currentMoveInput, _inputRotationAngle+ISOMETRIC_OFFSET);
+            if (Time.timeScale == 0)
+            {
+                inputCameraRelative = Vector2.zero;
+            }
             OnMoveInput?.Invoke(inputCameraRelative);
             if (BallImpulseOnMove)
             {
@@ -97,7 +118,20 @@ namespace Player.PlayerController
             }
 
             var rotationCameraRelative = RotateInput(_currentDirectionInput, _inputRotationAngle+ISOMETRIC_OFFSET);
-            OnLookInput?.Invoke(rotationCameraRelative);
+            //OnLookInput?.Invoke(rotationCameraRelative);
+                
+
+            if (_zoomInAction.IsPressed() && _zoomOutAction.IsPressed())
+            {
+                OnZoomReset?.Invoke();
+            }
+            else
+            {
+                if (_zoomInAction.IsPressed())
+                    OnZoomIn?.Invoke();
+                if (_zoomOutAction.IsPressed())
+                    OnZoomOut?.Invoke();
+            }
 
             UpdateCursorState();
             //Debug.Log("INPUT ENABLED: " + _playerInput.enabled);
@@ -142,6 +176,19 @@ namespace Player.PlayerController
             {
                 _playerMap.Enable();
             }
+        }
+        
+        private void OnDestroy()
+        {
+            OnMoveInput = null;
+            OnJumpInput = null;
+            OnModeChangeInput = null;
+            OnSprintImpulseInput = null;
+            PreviousCamera = null;
+            NextCamera = null;
+            Pause = null;
+            OnZoomIn = null;
+            OnZoomOut = null;
         }
         #endregion
 
@@ -190,11 +237,17 @@ namespace Player.PlayerController
             action.Disable();  
             action.Enable();
         }
-        
+
+        public float GetInputRotation()
+        {
+            return _inputRotationAngle;
+        }
         public void SetInputRotation(float angle)
         {
-            _inputRotationAngle += angle;
+            _inputRotationAngle = angle;
         }
         #endregion
+
+        
     }
 }

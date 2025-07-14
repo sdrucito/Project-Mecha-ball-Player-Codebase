@@ -14,7 +14,6 @@ namespace Player
         Dead
     }
     
-    
     [RequireComponent(typeof(Rigidbody),typeof(PawnAttributes))]
     public class Player : Singleton<Player>, IDamageable
     {
@@ -23,7 +22,6 @@ namespace Player
         
         private PhysicsModule _physicsModule;
         private PlayerKneeWalkAnimator _playerKneeWalkAnimator;
-
         public PawnAttributes PawnAttributes { get; private set; }
 
         [field: SerializeField] public ControlModuleManager ControlModuleManager { get; private set; }
@@ -36,7 +34,7 @@ namespace Player
         [field: SerializeField] public PlayerAnimator PlayerAnimator { get; private set; }
         [field: SerializeField] public PlayerVFX PlayerVFX { get; private set; }
 
-        
+        public Transform CurrentCheckpoint { get; private set; }
         public PlayerState PlayerState { get; private set; }
         protected override void Awake()
         {
@@ -58,6 +56,7 @@ namespace Player
             PlayerAnimator.Rebirth();
             
             PawnAttributes.InitAttributes();
+            ResetUI();
             while (!_playerKneeWalkAnimator.IsReady)
             {
                 yield return null;
@@ -75,23 +74,39 @@ namespace Player
                 
             }
             
-            Debug.Log("Setting input enabled");
+            CustomDeadZone.Instance.ResetCameraPivotPosition();
             PlayerInputManager.Instance.SetInputEnabled(true);
 
             
+        }
+
+        private void ResetUI()
+        {
+            UIManager uiManager = GameManager.Instance.UIManager;
+            if (uiManager != null)
+            {
+                uiManager.HudUI.ResetDamage();
+                uiManager.HudUI.SetImpulseCharge(1.0f);
+            }
         }
 
         public void SpawnPlayer(Transform newPosition)
         {
             // Block player input during spawn
             PlayerInputManager.Instance.SetInputEnabled(false);
-            Debug.Log("Setting input disabled");
 
             // Use here the function on the other branch for player repositioning
             PhysicsModule.Reposition(newPosition.position, newPosition.rotation);
+            PhysicsModule.SaveReposition();
+            CurrentCheckpoint = newPosition;
             //PlayerAnimator.Initialize();
             // Here the player should play something like spawn animations, sounds ecc.
             StartCoroutine(InitializePlayer());
+        }
+
+        public void SetCheckpoint(Transform newPosition)
+        {
+            CurrentCheckpoint = newPosition;
         }
         
         private void OnCollisionEnter(Collision other)
@@ -100,7 +115,7 @@ namespace Player
             CollisionData collisionData = new CollisionData(other, other.gameObject.layer, other.gameObject.tag, Rigidbody.linearVelocity.magnitude);
             if (collisionData.Tag == "Ground")
             {
-                if (collisionData.VelocityMagnitude > 0.01)
+                if (collisionData.CollisionInfo.impulse.y > 3)
                 {
                     CameraShake.Instance.Shake("BallLanding");
                     HapticsManager.Instance.Play("BumpWeak");
@@ -151,6 +166,7 @@ namespace Player
         public void Die()
         {
             OnPlayerDeath?.Invoke();
+            PlayerSound.Death();
         } 
         public void TakeDamage(float damage)
         {
@@ -170,6 +186,8 @@ namespace Player
             else
             {
                 PlayerState = PlayerState.Dead;
+                HapticsManager.Instance.Play("GameOver");
+
             }
         }
 

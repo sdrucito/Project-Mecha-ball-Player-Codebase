@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Player;
 using Player.Animation;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -100,12 +101,16 @@ public class RaycastManager : MonoBehaviour
     public void ExecuteGroundedForLeg(LegAnimator leg)
     {
         Vector3 origin = ComputeLegPositionForStep(leg,0.0f);
-        //Debug.DrawLine(origin, origin + -_rigidbody.transform.up * jumpHeight, Color.cyan, 1f);
 
         var ray = new Ray(origin, -_rigidbody.transform.up);
         if (Physics.Raycast(ray, out var hit, jumpHeight, LayerMask.GetMask(terrainLayer)))
         {
             _hitList.TryAdd(leg.Name, hit);
+            if (leg.Lerp < 1f)
+            {
+                // If step is executing update step
+                leg.NewPosition = hit.point;
+            }
         }
         else
         {
@@ -126,7 +131,7 @@ public class RaycastManager : MonoBehaviour
             origin = ComputeLegPositionForStep(leg, angle - 25.0f);
             Vector3 legDirection = origin - _rigidbody.position;
             // double‐cross gives you the projection of down onto the plane ⟂ legDir
-            Vector3 newDownDirection    = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
+            Vector3 newDownDirection = Vector3.Cross(legDirection, Vector3.Cross(-_rigidbody.transform.up, legDirection)).normalized;
             Debug.DrawLine(origin, origin + newDownDirection * jumpHeight, Color.blue, 1f);
             //Debug.DrawLine(origin, origin -_rigidbody.transform.up * jumpHeight, Color.blue, 1.0f);
             ray = new Ray(origin, newDownDirection);
@@ -137,7 +142,15 @@ public class RaycastManager : MonoBehaviour
             } 
         }
     }
-    
+    public bool CanRepositionAfterFall(PlayerRepositionInfo playerRepositionInfo, float halfHeight)
+    {
+        var ray = new Ray(playerRepositionInfo.Position, -playerRepositionInfo.Normal);
+        if (Physics.Raycast(ray, out var hit, halfHeight*8.0f, LayerMask.GetMask(terrainLayer)))
+        {
+            return true;
+        }
+        return false;
+    }
     public bool GetLegHit(string legName, out RaycastHit hit)
     {
         if (_hitList.TryGetValue(legName, out hit))

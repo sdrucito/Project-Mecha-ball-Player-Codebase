@@ -3,9 +3,20 @@ using System.Collections;
 using System.Collections.Generic;
 using Player.PlayerController;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Player
 {
+    /// <summary>
+    /// Carries details for the last player position
+    /// </summary>
+    public struct PlayerRepositionInfo
+    {
+        public Vector3 Position;
+        public Quaternion Rotation;
+        public Vector3 Normal;
+    }
+
     /// <summary>
     /// Carries collision details including Unity Collision, layer, and tag.
     /// </summary>
@@ -32,11 +43,13 @@ namespace Player
     /// Component that manages all physics interactions for the player,
     /// handling collision callbacks, grounding logic, and terrain-normal updates.
     /// </summary>
-    public class PhysicsModule : MonoBehaviour
+    public class PhysicsModule : MonoBehaviour, IFixedUpdateObserver
     {
         #region Serialized Parameters
-        [Header("Ground Transition Settings")]
-        [SerializeField] private float minCorrelationForTransition = 0.9f;
+        [Header("Ground Settings")]
+        [SerializeField] private float minCorrelationMove = 0.9f;
+        [SerializeField] private float ballHalfHeight = 0.5f;
+        [SerializeField] private float repositionYOffset = 0.4f;
         #endregion
 
         #region State Fields
@@ -46,21 +59,25 @@ namespace Player
         private float _collisionAngle;
         private Vector3 _groundNormal = Vector3.up;
         private Vector2 _whitenScale = Vector2.one;
-        private Vector3 _savedPosition = Vector3.zero;
-        private Quaternion _savedRotation = Quaternion.identity;
+        private PlayerRepositionInfo _playerRepositionInfo;
+        private Vector3 _lastPosition;
+        private Vector3 _velocity;
         #endregion
 
         #region Contact & Collision Queues
         private List<ContactPoint> _contactPoints = new List<ContactPoint>();
         private List<int> _collisionLayers = new List<int>();
+        private List<string> _collisionTags = new List<string>();
         #endregion
+        public int FixedUpdatePriority { get; set; }
 
         #region Public Properties
         /// <summary>
         /// Indicates whether the module is currently rotating to align with terrain.
         /// </summary>
         public bool IsRotating => _isRotating;
-        
+
+        [SerializeField] private float maxAngularSpeed = 10f;
         /*
         /// <summary>
         /// Indicates whether the module has to reposition the player to the last saved position/rotation
@@ -76,9 +93,24 @@ namespace Player
         private void Awake()
         {
             _groundLayer = LayerMask.NameToLayer("Ground");
+            _lastPosition = Player.Instance.Rigidbody.position;
         }
         
-        
+        private void OnEnable() {
+            FixedUpdateManager.Instance.Register(this);
+        }
+
+        private void OnDisable() {
+            FixedUpdateManager.Instance?.Unregister(this);
+        }
+
+        public void ObservedFixedUpdate()
+        {
+            var currentPosition = Player.Instance.Rigidbody.position;
+            _velocity = (currentPosition - _lastPosition) / Time.fixedDeltaTime;
+            _lastPosition = currentPosition;
+            LimitAngularVelocity();
+        }
 
         #endregion
 
@@ -102,6 +134,7 @@ namespace Player
                 UpdateBallGrounded();
             }
         }
+        
 
         /// <summary>
         /// Determines if movement is allowed given current grounded state and surface correlation.
@@ -112,26 +145,40 @@ namespace Player
             {
                 return false;
             }
+
             if (movement.magnitude <= 0f)
+            {
                 return true;
+            }
 
             var hits = Player.Instance.RaycastManager.GetHitList();
             float sumCorrelation = 0f;
+            int corrCounter = 0;
             foreach (var hit in hits)
             {
                 float corr = GetMovementCorrelation(hit.point, movement);
                 if (corr > 0f)
+                {
                     sumCorrelation += corr;
+                    corrCounter++;
+                }
             }
-            if(sumCorrelation == 0f)
-                Debug.Log("Computed correlation: " + sumCorrelation);
-            return sumCorrelation > minCorrelationForTransition;
+            
+            return sumCorrelation > minCorrelationMove && corrCounter >= 2;
         }
 
         public void InjectGroundLayer()
         {
             _collisionLayers.Add(_groundLayer);
         }
+        
+        public void RemoveGroundLayer()
+        {
+            _collisionLayers.Remove(_groundLayer);
+        }
+
+        
+        
 
         /// <summary>
         /// Updates the value of the scale used to remap uneven positioning of legs for movement correlation
@@ -140,6 +187,23 @@ namespace Player
         {
             _whitenScale = scale;
         }
+        
+        public Vector3 GetVelocity()
+        {
+            return _velocity;
+        }
+
+        void LimitAngularVelocity()
+        {
+            var rb = Player.Instance.Rigidbody;
+
+            float angularSpeed = rb.angularVelocity.magnitude;
+            if (angularSpeed > maxAngularSpeed)
+            {
+                rb.angularVelocity = rb.angularVelocity.normalized * maxAngularSpeed;
+            }
+        }
+        
         #endregion
 
         #region Ground Normal Computation
@@ -180,17 +244,28 @@ namespace Player
         /// </summary>
         public void OnEnterPhysicsUpdate(CollisionData hitData)
         {
-            Player player = Player.Instance;
-            if (player.ControlModuleManager.GetActiveModuleName() == "Ball" && !player.ControlModuleManager.IsSwitching)
+            if (CanUpdateBallGround())
             {
                 if (hitData.Layer == _groundLayer)
+                {
+                    Debug.Log("Adding new ground");
                     _groundNormal = GetCollisionNormal(hitData);
+                }
                 _collisionLayers.Add(hitData.Layer);
+                _collisionTags.Add(hitData.Tag);
                 UpdateBallGrounded();
                 
                 // Pass the velocity to modulate the volume of the hit ground
                 Player.Instance.PlayerSound.HitGround(hitData.Tag, hitData.VelocityMagnitude);
             }
+        }
+
+        private static bool CanUpdateBallGround()
+        {
+            Player player = Player.Instance;
+            return (player.ControlModuleManager.GetActiveModuleName() == "Ball" &&
+                    !player.ControlModuleManager.IsSwitching) || (player.ControlModuleManager.GetActiveModuleName() == "Walk" &&
+                                                                  player.ControlModuleManager.IsSwitching);
         }
 
         /// <summary>
@@ -209,8 +284,8 @@ namespace Player
 
         private void TryDequeueTerrain(CollisionData hitData)
         {
-            Debug.Log("Dequeueing collision layer: " + hitData.Layer);
             _collisionLayers.Remove(hitData.Layer);
+            _collisionTags.Remove(hitData.Tag);
         }
         #endregion
 
@@ -221,8 +296,12 @@ namespace Player
         public bool IsGrounded()
         {
             UpdateGrounded();
-            
             return _isGrounded;
+        }
+
+        public bool IsWalkable()
+        {
+            return !_collisionTags.Contains("BallOnly");
         }
 
         /// <summary>
@@ -238,6 +317,8 @@ namespace Player
         {
             _isGrounded = _collisionLayers.Contains(_groundLayer);
         }
+        
+        
         #endregion
 
         #region Collision Normal Helpers
@@ -248,7 +329,7 @@ namespace Player
         {
             hitData.CollisionInfo.GetContacts(_contactPoints);
             GetCollisionPoint(out ContactPoint? cp);
-            return cp?.normal ?? Vector3.zero;
+            return cp?.normal ?? Vector3.up;
         }
 
         /// <summary>
@@ -313,15 +394,28 @@ namespace Player
 
         public void RepositionOnFall()
         {
-            Reposition(_savedPosition, _savedRotation);
-            // TODO: Call here SFX and VFX associated
-            Player.Instance.TakeDamage(20.0f);
+            Player player = Player.Instance;
+            PlayerRepositionInfo playerRepositionInfo = _playerRepositionInfo;
+            playerRepositionInfo.Position = player.ControlModuleManager.GetActiveModuleName() == "Walk"
+                ? playerRepositionInfo.Position += _playerRepositionInfo.Normal * 2.0f
+                : playerRepositionInfo.Position;
+            if (player.RaycastManager.CanRepositionAfterFall(playerRepositionInfo, ballHalfHeight))
+            {
+                Reposition(playerRepositionInfo.Position, playerRepositionInfo.Rotation);
+            }
+            else
+            {
+                // Reposition player to the last spawn position
+                Reposition(player.CurrentCheckpoint.position, player.CurrentCheckpoint.rotation);
+            }
+            Player.Instance.TakeDamage(8.0f);
         }
 
         public void Reposition(Vector3 position, Quaternion rotation)
         {
             Rigidbody rb = Player.Instance.Rigidbody;
             rb.isKinematic = true;
+            rb.position = position;
             rb.position = position;
             rb.rotation = rotation;
             rb.isKinematic = false;
@@ -332,10 +426,17 @@ namespace Player
 
         public void SaveReposition()
         {
-            _savedPosition = transform.position;
-            _savedRotation = transform.rotation;
+            if (!_collisionTags.Contains("BallOnly"))
+            {
+                _playerRepositionInfo.Position = transform.position;
+                _playerRepositionInfo.Position.y += repositionYOffset;
+                _playerRepositionInfo.Rotation = transform.rotation;
+                _playerRepositionInfo.Normal = _groundNormal;
+            }
+           
         }
-        
+
+   
         #endregion
 
 
